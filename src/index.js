@@ -1,97 +1,57 @@
+/**
+ * Main Application Entry Point
+ *
+ * This file serves as the primary entry point for the SaaS application.
+ * It handles server initialization, database connection, and graceful startup.
+ *
+ * Features:
+ * - Environment variable loading
+ * - Database connection initialization
+ * - Server startup with error handling
+ * - Graceful process management
+ */
+
 import dotenv from "dotenv";
-import express from "express";
-import {
-  sendSuccess,
-  sendError,
-  asyncHandler,
-} from "./utils/response/index.js";
-import {
-  globalErrorHandler,
-  responseTimeMiddleware,
-} from "./middleware/errorHandler.js";
+import app from "./app.js";
 import { databaseConfig } from "./config/database.js";
 
-// Load environment variables
+// Load environment variables from .env file
+// This must be done before any other imports that depend on env vars
 dotenv.config();
 
-const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(responseTimeMiddleware);
-
-// Routes
-app.get("/", (req, res) => {
-  return sendSuccess(res, "Welcome to the API", { version: "1.0.0" });
-});
-
-app.get("/health", (req, res) => {
-  return sendSuccess(res, "Server is healthy", {
-    status: "OK",
-    timestamp: new Date(),
-  });
-});
-
-// Example async route with error handling
-app.get(
-  "/test-async",
-  asyncHandler(async (req, res) => {
-    // Simulate some async operation
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    // Simulate potential error
-    if (req.query.error === "true") {
-      throw new Error("Simulated error for testing");
-    }
-
-    return sendSuccess(res, "Async operation completed", { data: "test data" });
-  })
-);
-
-// Example route with validation
-app.post(
-  "/users",
-  asyncHandler(async (req, res) => {
-    const { name, email } = req.body;
-
-    // Basic validation
-    if (!name || !email) {
-      return sendError(res, "Name and email are required", 400);
-    }
-
-    // Simulate user creation
-    const newUser = {
-      id: Date.now(),
-      name,
-      email,
-      createdAt: new Date(),
-    };
-
-    return sendSuccess(res, "User created successfully", newUser, 201);
-  })
-);
-
-// 404 handler
-app.use((req, res) => {
-  return sendError(res, "Route not found", 404);
-});
-
-// Global error handler (must be last)
-app.use(globalErrorHandler);
-
-// Initialize database and start server
+/**
+ * Initializes and starts the Express server
+ *
+ * This function handles the complete server startup process:
+ * 1. Establishes database connection
+ * 2. Starts the HTTP server on specified port
+ * 3. Provides startup feedback and error handling
+ *
+ * @async
+ * @function startServer
+ * @returns {Promise<void>}
+ */
 async function startServer() {
   try {
+    // Initialize database connection first
+    // This ensures DB is ready before accepting requests
     await databaseConfig();
+
+    // Start the Express server
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
+    // Log critical startup errors
     console.error("Failed to start server:", error);
+
+    // Exit with error code to indicate startup failure
+    // This is important for container orchestration and monitoring
     process.exit(1);
   }
 }
 
+// Initiate server startup
 startServer();
