@@ -10,11 +10,14 @@ import {
 } from "../utils/response/index.js";
 import { asyncHandler } from "../utils/response/helpers.js";
 import { logger } from "../config/logger.js";
+import { env } from "../config/env.js";
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
-const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
-const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "30d";
+const {
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  REFRESH_TOKEN_SECRET,
+  REFRESH_TOKEN_EXPIRES_IN,
+} = env;
 
 /**
  * Generate JWT token with user and business context

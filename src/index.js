@@ -11,15 +11,12 @@
  * - Graceful process management
  */
 
-import dotenv from "dotenv";
+import "./config/env.js";
 import app from "./app.js";
 import { databaseConfig } from "./config/database.js";
+import { env } from "./config/env.js";
 
-// Load environment variables from .env file
-// This must be done before any other imports that depend on env vars
-dotenv.config();
-
-const PORT = process.env.PORT || 8080;
+const PORT = env.PORT;
 
 /**
  * Initializes and starts the Express server

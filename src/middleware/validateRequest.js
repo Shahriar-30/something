@@ -8,7 +8,8 @@ export const validateRequest = (schema) => (req, res, next) => {
   });
 
   if (!parsed.success) {
-    const formattedErrors = parsed.error.errors.map((error) => ({
+    const zodErrors = parsed.error.issues || parsed.error.errors || [];
+    const formattedErrors = zodErrors.map((error) => ({
       path: error.path.join("."),
       message: error.message,
       value: error.code === "invalid_type" ? undefined : error.received,
