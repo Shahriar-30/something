@@ -69,10 +69,10 @@ app.use(responseTimeMiddleware); // Track response times
  * Import and mount all application routes.
  * Each route module handles a specific feature area.
  */
-import helloRoute from "./routes/hello.js";
+import apiV1Routes from "./routes/api/v1/index.js";
 
-// Mount routes with their respective base paths
-app.use("/hello", helloRoute);
+// Mount routes with versioned API base path
+app.use("/api/v1", apiV1Routes);
 
 /**
  * 404 Not Found Handler
