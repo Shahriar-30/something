@@ -7,7 +7,6 @@ import {
   logout,
   verifyEmail,
   resendVerification,
-  createBusiness,
   passwordResetRequest,
   passwordResetConfirm,
 } from "../../../controllers/authController.js";
@@ -17,7 +16,6 @@ import {
   loginSchema,
   registerSchema,
   refreshTokenSchema,
-  createBusinessSchema,
   verifyEmailSchema,
   resendVerificationSchema,
   passwordResetRequestSchema,
@@ -47,12 +45,6 @@ router.post(
   passwordResetConfirm
 );
 router.post(
-  "/businesses",
-  authenticate,
-  validateRequest(createBusinessSchema),
-  createBusiness
-);
-router.patch(
   "/switch-business/:id",
   authenticate,
   validateRequest(switchBusinessSchema),

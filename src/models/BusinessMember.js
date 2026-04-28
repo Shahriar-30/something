@@ -52,4 +52,15 @@ businessMemberSchema.statics.findActiveForBusiness = function (
   return this.findOne({ businessId, userId, status: "active" });
 };
 
+businessMemberSchema.statics.findActiveExcludingBusinessForUser = function (
+  userId,
+  businessId
+) {
+  return this.find({
+    userId,
+    businessId: { $ne: businessId },
+    status: "active",
+  }).sort({ joinedAt: -1 });
+};
+
 export const BusinessMember = model("BusinessMember", businessMemberSchema);

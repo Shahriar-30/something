@@ -18,6 +18,7 @@ The frontend developer should use the versioned routes to keep compatibility as 
 ### Route files
 
 - `src/routes/api/v1/auth.js` - auth, email verification, refresh, business switching
+- `src/routes/api/v1/businesses.js` - business management (update, soft delete)
 - `src/routes/api/v1/invitations.js` - member invitation flow
 - `src/routes/api/v1/hello.js` - sample health/demo route
 
@@ -212,7 +213,7 @@ All errors follow this shape:
 
 ### Create business
 
-- `POST /api/v1/auth/businesses`
+- `POST /api/v1/businesses`
 - Description: Create an additional business and switch the user's active business to it.
 - Headers:
   - `Authorization: Bearer <token>`
@@ -283,6 +284,126 @@ All errors follow this shape:
     },
     "businesses": [ ... ]
   }
+}
+```
+
+---
+
+## Businesses
+
+### List my businesses
+
+- `GET /api/v1/businesses`
+- Description: Get all active businesses where the current user is an active member.
+- Headers:
+  - `Authorization: Bearer <token>`
+- Example response:
+
+```json
+{
+  "success": true,
+  "message": "Businesses retrieved successfully",
+  "data": {
+    "businesses": [
+      {
+        "id": "...",
+        "name": "...",
+        "role": "owner"
+      }
+    ]
+  }
+}
+```
+
+### Get business by ID
+
+- `GET /api/v1/businesses/:id`
+- Description: Get details of a single business the current user belongs to.
+- Headers:
+  - `Authorization: Bearer <token>`
+- Params:
+  - `id` = business ID
+- Example response:
+
+```json
+{
+  "success": true,
+  "message": "Business retrieved successfully",
+  "data": {
+    "business": {
+      "id": "...",
+      "name": "...",
+      "role": "admin"
+    }
+  }
+}
+```
+
+### Update business
+
+- `PATCH /api/v1/businesses/:id`
+- Description: Update business profile fields.
+- Authorization:
+  - `owner` and `admin` can update
+- Headers:
+  - `Authorization: Bearer <token>`
+- Params:
+  - `id` = business ID
+- Body (all optional, at least one required):
+  - `name` (string)
+  - `logoUrl` (string or null)
+  - `currency` (3-letter string, uppercase)
+  - `location` (object with optional `street`, `city`, `state`, `zip`, `country`)
+  - `phoneNumber` (string or null)
+  - `phoneCountry` (string or null)
+- Example response:
+
+```json
+{
+  "success": true,
+  "message": "Business updated successfully",
+  "data": {
+    "business": {
+      "id": "...",
+      "name": "...",
+      "logoUrl": null,
+      "currency": "BDT",
+      "location": {
+        "street": null,
+        "city": null,
+        "state": null,
+        "zip": null,
+        "country": null
+      },
+      "phoneNumber": null,
+      "phoneCountry": null,
+      "updatedAt": "..."
+    }
+  }
+}
+```
+
+### Soft delete business
+
+- `DELETE /api/v1/businesses/:id`
+- Description: Soft delete a business.
+- Authorization:
+  - only `owner` can soft delete
+- Headers:
+  - `Authorization: Bearer <token>`
+- Params:
+  - `id` = business ID
+- Behavior:
+  - marks business as deleted (`isDeleted: true`)
+  - deactivates active business memberships
+  - updates affected users' `activeBusiness` to another active business when available, otherwise clears it
+- Example response:
+
+```json
+{
+  "success": true,
+  "message": "Business deleted successfully",
+  "data": null
 }
 ```
 
@@ -427,6 +548,8 @@ All errors follow this shape:
 
 - Auth routes: `src/routes/api/v1/auth.js`
 - Auth controller: `src/controllers/authController.js`
+- Business routes: `src/routes/api/v1/businesses.js`
+- Business controller: `src/controllers/businessController.js`
 - Invitation routes: `src/routes/api/v1/invitations.js`
 - Invitation controller: `src/controllers/invitationController.js`
 - Validation middleware: `src/middleware/validateRequest.js`

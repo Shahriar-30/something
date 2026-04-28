@@ -300,48 +300,6 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 /**
- * Create a new business for the authenticated user
- */
-export const createBusiness = asyncHandler(async (req, res) => {
-  const { name } = req.validated.body;
-  const { userId } = req.user;
-
-  const business = new Business({
-    name: name.trim(),
-    createdBy: userId,
-  });
-  await business.save();
-
-  const membership = new BusinessMember({
-    businessId: business._id,
-    userId,
-    role: "owner",
-    status: "active",
-  });
-  await membership.save();
-
-  await User.findByIdAndUpdate(userId, { activeBusiness: business._id });
-
-  const businesses = await getUserBusinesses(userId);
-  const activeBusiness = businesses.find(
-    (b) => b.id.toString() === business._id.toString()
-  );
-
-  const token = generateToken(userId, business._id, "owner");
-
-  logger.info("User created a new business", {
-    userId,
-    businessId: business._id,
-  });
-
-  return sendSuccess(res, "Business created successfully", {
-    token,
-    activeBusiness,
-    businesses,
-  });
-});
-
-/**
  * Switch active business
  */
 export const switchBusiness = asyncHandler(async (req, res) => {

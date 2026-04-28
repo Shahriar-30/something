@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { User, BusinessMember } from "../models/index.js";
+import { User, Business, BusinessMember } from "../models/index.js";
 import { sendUnauthorized } from "../utils/response/index.js";
 import { logger } from "../config/logger.js";
 import { env } from "../config/env.js";
@@ -45,6 +45,11 @@ export const authenticate = async (req, res, next) => {
 
     if (!membership) {
       return sendUnauthorized(res, "Business access revoked");
+    }
+
+    const business = await Business.findActiveById(decoded.activeBusinessId);
+    if (!business) {
+      return sendUnauthorized(res, "Business is no longer available");
     }
 
     // Verify role matches
@@ -174,8 +179,14 @@ export const optionalAuth = async (req, res, next) => {
           userId: decoded.userId,
           status: "active",
         });
+        const business = await Business.findActiveById(decoded.activeBusinessId);
 
-        if (user && membership && membership.role === decoded.activeRole) {
+        if (
+          user &&
+          membership &&
+          membership.role === decoded.activeRole &&
+          business
+        ) {
           req.user = {
             userId: decoded.userId,
             activeBusinessId: decoded.activeBusinessId,

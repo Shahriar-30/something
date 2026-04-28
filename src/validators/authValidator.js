@@ -24,12 +24,6 @@ export const refreshTokenSchema = z.object({
   }),
 });
 
-export const createBusinessSchema = z.object({
-  body: z.object({
-    name: z.string().min(1, "Business name is required"),
-  }),
-});
-
 export const verifyEmailSchema = z.object({
   body: z.object({
     email: emailSchema,
