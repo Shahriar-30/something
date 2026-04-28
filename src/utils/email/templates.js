@@ -42,7 +42,29 @@ export const renderInvitationEmail = ({
   </p>
 </div>
 `;
+export const renderEmailVerificationTemplate = ({ code, expiresInMinutes }) => `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Email verification code</h2>
+  <p>Thank you for registering. Use the code below to verify your email address:</p>
+  <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
+    <span style="font-size: 32px; letter-spacing: 4px; font-weight: bold;">${code}</span>
+  </div>
+  <p>This code will expire in ${expiresInMinutes} minutes.</p>
+  <p>If you did not request this verification, please ignore this email.</p>
+</div>
+`;
 
+export const renderPasswordResetTemplate = ({ code, expiresInMinutes }) => `
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2>Password reset code</h2>
+  <p>We received a request to reset your password. Use the code below to continue:</p>
+  <div style="background-color: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
+    <span style="font-size: 32px; letter-spacing: 4px; font-weight: bold;">${code}</span>
+  </div>
+  <p>This code will expire in ${expiresInMinutes} minutes.</p>
+  <p>If you did not request a password reset, please ignore this email or contact support.</p>
+</div>
+`;
 /**
  * Render HTML for a resent invitation email.
  */

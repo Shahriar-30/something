@@ -22,6 +22,8 @@
  */
 
 import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { sendError } from "./utils/response/index.js";
@@ -61,6 +63,13 @@ app.use(helmet()); // Security headers
 app.use(limiter); // Rate limiting
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(cookieParser()); // Parse cookies
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 app.use(responseTimeMiddleware); // Track response times
 
 /**
@@ -73,6 +82,9 @@ import apiV1Routes from "./routes/api/v1/index.js";
 
 // Mount routes with versioned API base path
 app.use("/api/v1", apiV1Routes);
+
+// Handle browser favicon requests gracefully
+app.get("/favicon.ico", (req, res) => res.sendStatus(204));
 
 /**
  * 404 Not Found Handler

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { User, Business, BusinessMember } from "../models/index.js";
+import { User, Business, BusinessMember, Otp } from "../models/index.js";
 import {
   sendSuccess,
   sendError,
@@ -8,16 +8,71 @@ import {
   sendUnauthorized,
   sendForbidden,
 } from "../utils/response/index.js";
+import { sendEmail } from "../utils/email/index.js";
+import {
+  renderEmailVerificationTemplate,
+  renderPasswordResetTemplate,
+} from "../utils/email/templates.js";
 import { asyncHandler } from "../utils/response/helpers.js";
 import { logger } from "../config/logger.js";
 import { env } from "../config/env.js";
 
 const {
+  NODE_ENV,
   JWT_SECRET,
   JWT_EXPIRES_IN,
   REFRESH_TOKEN_SECRET,
   REFRESH_TOKEN_EXPIRES_IN,
+  EMAIL_VERIFICATION_CODE_TTL_MINUTES,
 } = env;
+
+const getCookieMaxAge = (expiresIn) => {
+  if (!expiresIn || typeof expiresIn !== "string") {
+    return 30 * 24 * 60 * 60 * 1000;
+  }
+
+  if (/^\d+$/.test(expiresIn)) {
+    return Number(expiresIn) * 1000;
+  }
+
+  const match = expiresIn.match(/^(\d+)([smhd])$/i);
+  if (!match) {
+    return 30 * 24 * 60 * 60 * 1000;
+  }
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multipliers = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+
+  return value * multipliers[unit];
+};
+
+const refreshTokenCookieOptions = {
+  httpOnly: true,
+  secure: NODE_ENV === "production",
+  sameSite: "strict",
+  maxAge: getCookieMaxAge(REFRESH_TOKEN_EXPIRES_IN),
+  path: "/",
+};
+
+const setRefreshTokenCookie = (res, refreshToken) => {
+  res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
+};
+
+const clearRefreshTokenCookie = (res) => {
+  res.clearCookie("refreshToken", {
+    ...refreshTokenCookieOptions,
+    maxAge: 0,
+  });
+};
+
+const getEmailVerificationCodeTtlMinutes = () =>
+  parseInt(EMAIL_VERIFICATION_CODE_TTL_MINUTES, 10) || 15;
 
 /**
  * Generate JWT token with user and business context
@@ -121,13 +176,35 @@ export const register = asyncHandler(async (req, res) => {
     (b) => b.id.toString() === business._id.toString()
   );
 
-  // Generate tokens
-  const token = generateToken(user._id, business._id, "owner");
-  const refreshToken = generateRefreshToken(user._id);
+  // Generate verification code and send email
+  const verificationCode = await Otp.createOtp({
+    userId: user._id,
+    type: "emailVerification",
+    ttlMinutes: getEmailVerificationCodeTtlMinutes(),
+  });
 
-  // Store refresh token hash
-  await user.setRefreshToken(refreshToken);
-  await user.save();
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Verify your email address",
+      html: renderEmailVerificationTemplate({
+        code: verificationCode,
+        expiresInMinutes: getEmailVerificationCodeTtlMinutes(),
+      }),
+      text: `Your email verification code is ${verificationCode}. It expires in ${getEmailVerificationCodeTtlMinutes()} minutes.`,
+    });
+  } catch (emailError) {
+    logger.error("Email delivery failed on register", {
+      error: emailError?.message,
+      email: user.email,
+    });
+    return sendError(
+      res,
+      "Unable to send verification email. Check email configuration.",
+      500,
+      emailError
+    );
+  }
 
   logger.info("User registered successfully", {
     userId: user._id,
@@ -135,17 +212,20 @@ export const register = asyncHandler(async (req, res) => {
     businessId: business._id,
   });
 
-  return sendSuccess(res, "Registration successful", {
-    token,
-    refreshToken,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-    },
-    activeBusiness,
-    businesses,
-  });
+  return sendSuccess(
+    res,
+    "Registration successful. Verification code sent to your email.",
+    {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        emailVerified: false,
+      },
+      activeBusiness,
+      businesses,
+    }
+  );
 });
 
 /**
@@ -164,6 +244,13 @@ export const login = asyncHandler(async (req, res) => {
   const isValidPassword = await user.comparePassword(password);
   if (!isValidPassword) {
     return sendUnauthorized(res, "Invalid credentials");
+  }
+
+  if (!user.emailVerified) {
+    return sendForbidden(
+      res,
+      "Email address is not verified. Please verify your email before logging in."
+    );
   }
 
   // Get user's businesses
@@ -190,6 +277,9 @@ export const login = asyncHandler(async (req, res) => {
   await user.setRefreshToken(refreshToken);
   await user.save();
 
+  // Set refresh token in an HttpOnly cookie
+  setRefreshTokenCookie(res, refreshToken);
+
   logger.info("User logged in successfully", {
     userId: user._id,
     email: user.email,
@@ -204,6 +294,48 @@ export const login = asyncHandler(async (req, res) => {
       name: user.name,
       email: user.email,
     },
+    activeBusiness,
+    businesses,
+  });
+});
+
+/**
+ * Create a new business for the authenticated user
+ */
+export const createBusiness = asyncHandler(async (req, res) => {
+  const { name } = req.validated.body;
+  const { userId } = req.user;
+
+  const business = new Business({
+    name: name.trim(),
+    createdBy: userId,
+  });
+  await business.save();
+
+  const membership = new BusinessMember({
+    businessId: business._id,
+    userId,
+    role: "owner",
+    status: "active",
+  });
+  await membership.save();
+
+  await User.findByIdAndUpdate(userId, { activeBusiness: business._id });
+
+  const businesses = await getUserBusinesses(userId);
+  const activeBusiness = businesses.find(
+    (b) => b.id.toString() === business._id.toString()
+  );
+
+  const token = generateToken(userId, business._id, "owner");
+
+  logger.info("User created a new business", {
+    userId,
+    businessId: business._id,
+  });
+
+  return sendSuccess(res, "Business created successfully", {
+    token,
     activeBusiness,
     businesses,
   });
@@ -255,7 +387,12 @@ export const switchBusiness = asyncHandler(async (req, res) => {
  * Refresh access token
  */
 export const refreshToken = asyncHandler(async (req, res) => {
-  const { refreshToken } = req.validated.body;
+  const refreshToken =
+    req.validated.body.refreshToken || req.cookies?.refreshToken;
+
+  if (!refreshToken) {
+    return sendUnauthorized(res, "Refresh token is required");
+  }
 
   try {
     // Verify refresh token
@@ -294,13 +431,211 @@ export const refreshToken = asyncHandler(async (req, res) => {
       activeBusiness.role
     );
 
+    // Rotate refresh token and persist new hash
+    const newRefreshToken = generateRefreshToken(user._id);
+    await user.setRefreshToken(newRefreshToken);
+    await user.save();
+    setRefreshTokenCookie(res, newRefreshToken);
+
     return sendSuccess(res, "Token refreshed successfully", {
       token,
+      refreshToken: newRefreshToken,
       activeBusiness,
     });
   } catch (error) {
     return sendUnauthorized(res, "Invalid refresh token");
   }
+});
+
+/**
+ * Verify email and auto-login the user
+ */
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { email, code } = req.validated.body;
+
+  const user = await User.findByEmail(email);
+  if (!user) {
+    return sendUnauthorized(res, "Invalid verification credentials");
+  }
+
+  if (user.emailVerified) {
+    return sendError(res, "Email is already verified", 409);
+  }
+
+  const isValidCode = await Otp.verifyOtp({
+    userId: user._id,
+    type: "emailVerification",
+    code,
+  });
+
+  if (!isValidCode) {
+    return sendUnauthorized(res, "Invalid or expired verification code");
+  }
+
+  user.emailVerified = true;
+  await user.save();
+
+  const businesses = await getUserBusinesses(user._id);
+  if (businesses.length === 0) {
+    return sendError(res, "No active business memberships found", 403);
+  }
+
+  let activeBusiness = businesses.find(
+    (b) => b.id.toString() === user.activeBusiness?.toString()
+  );
+  if (!activeBusiness) {
+    activeBusiness = businesses[0];
+    user.activeBusiness = activeBusiness.id;
+    await user.save();
+  }
+
+  const token = generateToken(user._id, activeBusiness.id, activeBusiness.role);
+  const refreshToken = generateRefreshToken(user._id);
+  await user.setRefreshToken(refreshToken);
+  await user.save();
+  setRefreshTokenCookie(res, refreshToken);
+
+  logger.info("User email verified and auto-logged in", {
+    userId: user._id,
+    email: user.email,
+  });
+
+  return sendSuccess(res, "Email verified successfully", {
+    token,
+    refreshToken,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      emailVerified: true,
+    },
+    activeBusiness,
+    businesses,
+  });
+});
+
+/**
+ * Resend email verification code
+ */
+export const resendVerification = asyncHandler(async (req, res) => {
+  const { email } = req.validated.body;
+
+  const user = await User.findByEmail(email);
+  if (!user) {
+    return sendError(res, "User with this email does not exist", 404);
+  }
+
+  if (user.emailVerified) {
+    return sendError(res, "Email is already verified", 409);
+  }
+
+  const verificationCode = await Otp.createOtp({
+    userId: user._id,
+    type: "emailVerification",
+    ttlMinutes: getEmailVerificationCodeTtlMinutes(),
+  });
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Your email verification code",
+      html: renderEmailVerificationTemplate({
+        code: verificationCode,
+        expiresInMinutes: getEmailVerificationCodeTtlMinutes(),
+      }),
+      text: `Your email verification code is ${verificationCode}. It expires in ${getEmailVerificationCodeTtlMinutes()} minutes.`,
+    });
+  } catch (emailError) {
+    logger.error("Email delivery failed on resend verification", {
+      error: emailError?.message,
+      email: user.email,
+      stack: emailError?.stack,
+    });
+
+    const errorMessage = `Unable to send verification email. ${
+      emailError?.message || "Unknown error"
+    }`;
+
+    return sendError(res, errorMessage, 500, emailError);
+  }
+
+  return sendSuccess(res, "Verification code resent successfully");
+});
+
+/**
+ * Request password reset OTP via email
+ */
+export const passwordResetRequest = asyncHandler(async (req, res) => {
+  const { email } = req.validated.body;
+
+  const user = await User.findByEmail(email);
+  if (!user) {
+    return sendError(res, "User with this email does not exist", 404);
+  }
+
+  const resetCode = await Otp.createOtp({
+    userId: user._id,
+    type: "passwordReset",
+    ttlMinutes: getEmailVerificationCodeTtlMinutes(),
+  });
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: "Password reset code",
+      html: renderPasswordResetTemplate({
+        code: resetCode,
+        expiresInMinutes: getEmailVerificationCodeTtlMinutes(),
+      }),
+      text: `Your password reset code is ${resetCode}. It expires in ${getEmailVerificationCodeTtlMinutes()} minutes.`,
+    });
+  } catch (emailError) {
+    logger.error("Email delivery failed on password reset request", {
+      error: emailError?.message,
+      email: user.email,
+    });
+    return sendError(
+      res,
+      "Unable to send password reset email. Check email configuration.",
+      500,
+      emailError
+    );
+  }
+
+  return sendSuccess(res, "Password reset code sent successfully");
+});
+
+/**
+ * Confirm password reset using OTP and set a new password
+ */
+export const passwordResetConfirm = asyncHandler(async (req, res) => {
+  const { email, code, password } = req.validated.body;
+
+  const user = await User.findByEmail(email);
+  if (!user) {
+    return sendUnauthorized(res, "Invalid password reset credentials");
+  }
+
+  const isValidCode = await Otp.verifyOtp({
+    userId: user._id,
+    type: "passwordReset",
+    code,
+  });
+
+  if (!isValidCode) {
+    return sendUnauthorized(res, "Invalid or expired password reset code");
+  }
+
+  await user.setPassword(password);
+  user.refreshTokenHash = null;
+  await user.save();
+
+  logger.info("User password reset successfully", {
+    userId: user._id,
+    email: user.email,
+  });
+
+  return sendSuccess(res, "Password reset successfully");
 });
 
 /**
@@ -311,6 +646,9 @@ export const logout = asyncHandler(async (req, res) => {
 
   // Clear refresh token hash
   await User.findByIdAndUpdate(userId, { refreshTokenHash: null });
+
+  // Clear the refresh token cookie
+  clearRefreshTokenCookie(res);
 
   logger.info("User logged out", { userId });
 

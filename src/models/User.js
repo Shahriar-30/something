@@ -36,6 +36,10 @@ const userSchema = new Schema(
       ref: "Business",
       default: null,
     },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
