@@ -26,6 +26,7 @@ const canManageInvitations = (userRole) => {
 export const sendInvitation = asyncHandler(async (req, res) => {
   const { email, role } = req.validated.body;
   const { activeBusinessId, activeRole, userId } = req.user;
+  const normalizedEmail = email.toLowerCase().trim();
 
   // Check permissions
   if (!canManageInvitations(activeRole)) {
@@ -42,16 +43,19 @@ export const sendInvitation = asyncHandler(async (req, res) => {
   }
 
   // Check if business exists
-  const business = await Business.findById(activeBusinessId);
+  const business = await Business.findActiveById(activeBusinessId);
   if (!business) {
     return sendNotFound(res, "Business not found");
   }
 
   // Check if user is already a member
-  const existingMember = await BusinessMember.findOne({
-    businessId: activeBusinessId,
-    userId: await User.findByEmail(email)?._id,
-  });
+  const existingUser = await User.findByEmail(normalizedEmail);
+  const existingMember = existingUser
+    ? await BusinessMember.findOne({
+        businessId: activeBusinessId,
+        userId: existingUser._id,
+      })
+    : null;
 
   if (existingMember && existingMember.status === "active") {
     return sendError(res, "User is already a member of this business", 409);
@@ -60,7 +64,7 @@ export const sendInvitation = asyncHandler(async (req, res) => {
   // Check for existing pending invitation
   const existingInvitation = await Invitation.findOne({
     businessId: activeBusinessId,
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     status: "pending",
   });
 
@@ -77,7 +81,7 @@ export const sendInvitation = asyncHandler(async (req, res) => {
   const invitation = new Invitation({
     businessId: activeBusinessId,
     invitedBy: userId,
-    email: email.toLowerCase(),
+    email: normalizedEmail,
     role,
   });
 
@@ -110,7 +114,7 @@ export const sendInvitation = asyncHandler(async (req, res) => {
 
     return sendSuccess(res, "Invitation sent successfully", {
       invitationId: invitation._id,
-      email,
+      email: normalizedEmail,
       role,
       sentAt: invitation.sentAt,
     });
@@ -125,19 +129,66 @@ export const sendInvitation = asyncHandler(async (req, res) => {
 });
 
 /**
- * Accept invitation
+ * Get invitation details by token for prefilled acceptance form
  */
-export const acceptInvitation = asyncHandler(async (req, res) => {
+export const getInvitationDetailsByToken = asyncHandler(async (req, res) => {
   const { token } = req.validated.params;
-  const { otp, name, password } = req.validated.body;
 
-  // Find invitation
   const invitation = await Invitation.findOne({ token, status: "pending" })
-    .populate("businessId", "name")
+    .populate("businessId", "name isDeleted")
     .populate("invitedBy", "name");
 
   if (!invitation) {
     return sendNotFound(res, "Invalid or expired invitation");
+  }
+
+  if (!invitation.businessId || invitation.businessId.isDeleted) {
+    return sendNotFound(res, "Business not found");
+  }
+
+  if (invitation.isExpired()) {
+    return sendError(res, "This invitation has been expired", 410);
+  }
+
+  return sendSuccess(res, "Invitation details retrieved successfully", {
+    invitation: {
+      token: invitation.token,
+      email: invitation.email,
+      role: invitation.role,
+      status: invitation.status,
+      business: {
+        id: invitation.businessId._id,
+        name: invitation.businessId.name,
+      },
+      invitedBy: invitation.invitedBy?.name || null,
+      sentAt: invitation.sentAt,
+    },
+  });
+});
+
+/**
+ * Accept invitation
+ */
+export const acceptInvitation = asyncHandler(async (req, res) => {
+  const { token } = req.validated.params;
+  const { otp, name, email, role, password } = req.validated.body;
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Find invitation
+  const invitation = await Invitation.findOne({ token, status: "pending" })
+    .populate("businessId", "name isDeleted")
+    .populate("invitedBy", "name");
+
+  if (!invitation) {
+    return sendNotFound(res, "Invalid or expired invitation");
+  }
+
+  if (!invitation.businessId) {
+    return sendNotFound(res, "Business not found");
+  }
+
+  if (invitation.businessId.isDeleted) {
+    return sendError(res, "This invitation is no longer valid", 410);
   }
 
   // Check if invitation is expired
@@ -149,6 +200,20 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
   const isValidOtp = await invitation.verifyOtp(otp);
   if (!isValidOtp) {
     return sendValidationError(res, "Invalid verification code");
+  }
+
+  if (invitation.email !== normalizedEmail) {
+    return sendValidationError(
+      res,
+      "Provided email does not match the invited email"
+    );
+  }
+
+  if (invitation.role !== role) {
+    return sendValidationError(
+      res,
+      "Provided role does not match the invited role"
+    );
   }
 
   // Check if user already exists
@@ -165,14 +230,7 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
       return sendError(res, "You are already a member of this business", 409);
     }
   } else {
-    // Create new user
-    if (!name || !password) {
-      return sendValidationError(
-        res,
-        "Name and password are required for new users"
-      );
-    }
-
+    // Create new user from invitation acceptance form.
     user = new User({
       name: name.trim(),
       email: invitation.email,
@@ -227,14 +285,15 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
  * Get business invitations (for owners/admins)
  */
 export const getInvitations = asyncHandler(async (req, res) => {
-  const { activeBusinessId, activeRole } = req.user;
+  const { activeRole } = req.user;
+  const { businessId } = req;
 
   if (!canManageInvitations(activeRole)) {
     return sendForbidden(res, "Only owners and admins can view invitations");
   }
 
   const invitations = await Invitation.find({
-    businessId: activeBusinessId,
+    businessId,
   })
     .populate("invitedBy", "name")
     .sort({ sentAt: -1 });
@@ -259,8 +318,9 @@ export const getInvitations = asyncHandler(async (req, res) => {
  * Expire invitation manually (for owners/admins)
  */
 export const expireInvitation = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { activeBusinessId, activeRole, userId } = req.user;
+  const { id } = req.validated.params;
+  const { activeRole, userId } = req.user;
+  const { businessId } = req;
 
   if (!canManageInvitations(activeRole)) {
     return sendForbidden(res, "Only owners and admins can expire invitations");
@@ -268,7 +328,7 @@ export const expireInvitation = asyncHandler(async (req, res) => {
 
   const invitation = await Invitation.findOne({
     _id: id,
-    businessId: activeBusinessId,
+    businessId,
     status: "pending",
   });
 
@@ -284,7 +344,7 @@ export const expireInvitation = asyncHandler(async (req, res) => {
   logger.info("Invitation expired manually", {
     invitationId: id,
     expiredBy: userId,
-    businessId: activeBusinessId,
+    businessId,
   });
 
   return sendSuccess(res, "Invitation expired successfully");
@@ -294,8 +354,9 @@ export const expireInvitation = asyncHandler(async (req, res) => {
  * Resend invitation (for owners/admins)
  */
 export const resendInvitation = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { activeBusinessId, activeRole, userId } = req.user;
+  const { id } = req.validated.params;
+  const { activeRole, userId } = req.user;
+  const { businessId } = req;
 
   if (!canManageInvitations(activeRole)) {
     return sendForbidden(res, "Only owners and admins can resend invitations");
@@ -303,7 +364,7 @@ export const resendInvitation = asyncHandler(async (req, res) => {
 
   const invitation = await Invitation.findOne({
     _id: id,
-    businessId: activeBusinessId,
+    businessId,
     status: "pending",
   })
     .populate("businessId", "name")
@@ -338,7 +399,7 @@ export const resendInvitation = asyncHandler(async (req, res) => {
 
     logger.info("Invitation resent successfully", {
       invitationId: id,
-      businessId: activeBusinessId,
+      businessId,
       email: invitation.email,
     });
 

@@ -1,3 +1,965 @@
+# API Documentation (Frontend Guide)
+
+## 1) Base Info
+
+- Base URL (dev): `http://localhost:8080`
+- API prefix: `/api/v1`
+- Content type: `application/json`
+- Protected routes require: `Authorization: Bearer <access_token>`
+
+Example full URL:
+
+`http://localhost:8080/api/v1/auth/login`
+
+---
+
+## 2) Standard Response Shape
+
+Successful response:
+
+```json
+{
+  "success": true,
+  "message": "Human readable message",
+  "data": {},
+  "error": null,
+  "meta": {
+    "timestamp": "2026-04-29T05:00:00.000Z"
+  }
+}
+```
+
+Error response:
+
+```json
+{
+  "success": false,
+  "message": "Human readable error message",
+  "data": null,
+  "error": {
+    "name": "ValidationError",
+    "message": "Details here"
+  },
+  "meta": {
+    "timestamp": "2026-04-29T05:00:00.000Z"
+  }
+}
+```
+
+---
+
+## 3) Auth + Session Model
+
+This backend uses:
+
+- **Access token (JWT)** for protected API calls
+- **Refresh token** returned in response and also set as an **HttpOnly cookie**
+
+When calling refresh in browser clients, use credentials:
+
+- `fetch`: `credentials: "include"`
+- axios: `withCredentials: true`
+
+---
+
+## 4) Multi-Business Context
+
+The API is business-aware.
+
+- Access token carries:
+  - `userId`
+  - `activeBusinessId`
+  - `activeRole`
+- Invitation and business-member routes use this active business context.
+- Frontend does **not** send business ID for:
+  - invitation list/create/resend/expire
+  - member list/remove
+- To change business context, call `POST /api/v1/auth/switch-business/:id`, then store the new returned access token.
+
+---
+
+## 5) Authentication Endpoints
+
+### POST `/api/v1/auth/register`
+
+Create user + first business, and send email verification code.
+
+Body:
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "businessName": "Acme LLC"
+}
+```
+
+Notes:
+
+- `password` min length is 8.
+- User is created with `emailVerified: false`.
+
+---
+
+### POST `/api/v1/auth/verify-email`
+
+Verify code and auto-login.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "code": "123456"
+}
+```
+
+Returns:
+
+- `token` (access token)
+- `refreshToken`
+- `user`
+- `activeBusiness`
+- `businesses`
+
+---
+
+### POST `/api/v1/auth/resend-verification`
+
+Resend verification code.
+
+Body:
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+---
+
+### POST `/api/v1/auth/login`
+
+Login existing user.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+Notes:
+
+- Login is blocked if email is not verified.
+
+---
+
+### POST `/api/v1/auth/refresh`
+
+Get new access token.
+
+Body (optional):
+
+```json
+{
+  "refreshToken": "optional-if-cookie-is-used"
+}
+```
+
+Notes:
+
+- Works with body token and/or HttpOnly cookie.
+- Save returned `token` on frontend.
+
+---
+
+### POST `/api/v1/auth/password-reset/request`
+
+Send password reset OTP code.
+
+Body:
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+---
+
+### POST `/api/v1/auth/password-reset/confirm`
+
+Verify reset code and set new password.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "code": "123456",
+  "password": "newpassword123"
+}
+```
+
+---
+
+### POST `/api/v1/auth/switch-business/:id` (Protected)
+
+Switch active business context.
+
+Params:
+
+- `id` = business ID
+
+Notes:
+
+- Returns a **new token** with updated `activeBusinessId` and role.
+- Frontend must replace old token immediately.
+
+---
+
+### POST `/api/v1/auth/logout` (Protected)
+
+Invalidate refresh token on server.
+
+---
+
+## 6) Business Endpoints
+
+### POST `/api/v1/businesses` (Protected)
+
+Create additional business and set it as active.
+
+Body:
+
+```json
+{
+  "name": "Second Business",
+  "logoUrl": null,
+  "currency": "USD",
+  "location": {
+    "street": null,
+    "city": null,
+    "state": null,
+    "zip": null,
+    "country": null
+  },
+  "phoneNumber": null,
+  "phoneCountry": null
+}
+```
+
+Notes:
+
+- Only `name` is required.
+- `currency` must be 3 chars if provided.
+- Returns updated `token`, `activeBusiness`, and `businesses`.
+
+---
+
+### GET `/api/v1/businesses` (Protected)
+
+Get all active businesses for current user.
+
+---
+
+### GET `/api/v1/businesses/:id` (Protected)
+
+Get business details if user is an active member.
+
+Params:
+
+- `id` = business ID (ObjectId format)
+
+---
+
+### PATCH `/api/v1/businesses/:id` (Protected)
+
+Update business fields.
+
+Params:
+
+- `id` = business ID (ObjectId format)
+
+Body:
+
+- Any subset of:
+  - `name`
+  - `logoUrl`
+  - `currency`
+  - `location.street`
+  - `location.city`
+  - `location.state`
+  - `location.zip`
+  - `location.country`
+  - `phoneNumber`
+  - `phoneCountry`
+
+Rules:
+
+- At least one field is required.
+- Allowed roles: `owner`, `admin`.
+
+---
+
+### DELETE `/api/v1/businesses/:id` (Protected)
+
+Soft delete business.
+
+Rules:
+
+- Only `owner`.
+
+Side effects:
+
+- Marks business deleted.
+- Removes active memberships in that business.
+- Reassigns users' `activeBusiness` to another active business if available.
+
+---
+
+## 7) Business Member Endpoints
+
+All endpoints below are business-scoped using token active business.
+
+Allowed roles:
+
+- `owner`, `admin`
+
+### GET `/api/v1/business-members` (Protected + business scope)
+
+List active members in current business.
+
+Response data includes:
+
+- membership id
+- role
+- status
+- joinedAt
+- user info (`id`, `name`, `email`, `activeBusiness`)
+
+---
+
+### PATCH `/api/v1/business-members/:userId/remove` (Protected + business scope)
+
+Remove a member from current business by setting membership status to `removed`.
+
+Params:
+
+- `userId` = target user ID (ObjectId format)
+
+Safety rules:
+
+- cannot remove yourself
+- admin cannot remove owner
+- cannot remove the last owner
+- user record remains (not deleted)
+- if removed user had this business as `activeBusiness`, fallback active business is assigned if available, else `null`
+
+---
+
+## 8) Invitation Endpoints
+
+All business-scoped invitation operations use the active business from token.
+
+Roles allowed for management endpoints:
+
+- `owner`, `admin`
+
+### POST `/api/v1/invitations` (Protected + business scope)
+
+Create invitation for active business.
+
+Body:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "staff"
+}
+```
+
+Role enum:
+
+- `owner`, `admin`, `staff`, `viewer`
+
+Behavior:
+
+- Rejects if user is already active member in that business.
+- Rejects if pending invite already exists for same email in that business.
+
+---
+
+### GET `/api/v1/invitations` (Protected + business scope)
+
+List invitations for current active business.
+
+No `businessId` is passed by frontend.
+
+Business is inferred from token context.
+
+---
+
+### POST `/api/v1/invitations/:id/resend` (Protected + business scope)
+
+Resend pending invitation email.
+
+Params:
+
+- `id` = invitation ID (ObjectId format)
+
+---
+
+### PATCH `/api/v1/invitations/:id/expire` (Protected + business scope)
+
+Expire pending invitation.
+
+Params:
+
+- `id` = invitation ID (ObjectId format)
+
+---
+
+### GET `/api/v1/invitations/accept/:token` (Public)
+
+Get invitation details for invite-accept page.
+
+Params:
+
+- `token` = invitation token
+
+Returns:
+
+- invited `email`
+- invited `role`
+- business name/id
+- inviter name
+
+---
+
+### POST `/api/v1/invitations/accept/:token` (Public)
+
+Accept invitation using OTP and registration fields.
+
+Params:
+
+- `token` = invitation token
+
+Body:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "staff",
+  "otp": "123456",
+  "name": "New Member",
+  "password": "password123"
+}
+```
+
+Rules:
+
+- `email` must match invited email.
+- `role` must match invited role.
+- `otp` must be 6 chars.
+- If user already exists, membership is added to business.
+- If user does not exist, user is created then membership is added.
+
+---
+
+## 9) Health/Demo Endpoint
+
+### GET `/api/v1/hello`
+
+Simple hello response.
+
+---
+
+## 10) Common Frontend Flow
+
+1. Register user (`/auth/register`)
+2. Verify email (`/auth/verify-email`) and store returned access token
+3. Call protected APIs with `Authorization: Bearer <token>`
+4. On 401/expired token, call `/auth/refresh`, replace token, retry
+5. If user changes business, call `/auth/switch-business/:id`, replace token
+6. Use invitation/member endpoints without passing business ID (business comes from token context)
+
+---
+
+## 11) Route Source of Truth
+
+- Auth routes: `src/routes/api/v1/auth.js`
+- Business routes: `src/routes/api/v1/businesses.js`
+- Business member routes: `src/routes/api/v1/businessMembers.js`
+- Invitation routes: `src/routes/api/v1/invitations.js`
+- Hello route: `src/routes/api/v1/hello.js`
+- Auth validation: `src/validators/authValidator.js`
+- Business validation: `src/validators/businessValidator.js`
+- Business member validation: `src/validators/businessMemberValidator.js`
+- Invitation validation: `src/validators/invitationValidator.js`
+# API Documentation (Frontend Guide)
+
+## 1) Base Info
+
+- Base URL (dev): `http://localhost:8080`
+- API prefix: `/api/v1`
+- Content type: `application/json`
+- Protected routes require: `Authorization: Bearer <access_token>`
+
+Example full URL:
+
+`http://localhost:8080/api/v1/auth/login`
+
+---
+
+## 2) Standard Response Shape
+
+Successful response:
+
+```json
+{
+  "success": true,
+  "message": "Human readable message",
+  "data": {},
+  "error": null,
+  "meta": {
+    "timestamp": "2026-04-29T05:00:00.000Z"
+  }
+}
+```
+
+Error response:
+
+```json
+{
+  "success": false,
+  "message": "Human readable error message",
+  "data": null,
+  "error": {
+    "name": "ValidationError",
+    "message": "Details here"
+  },
+  "meta": {
+    "timestamp": "2026-04-29T05:00:00.000Z"
+  }
+}
+```
+
+---
+
+## 3) Auth + Session Model (Important)
+
+This backend uses:
+
+- **Access token (JWT)** for protected API calls.
+- **Refresh token** returned in response and also set as an **HttpOnly cookie**.
+
+When calling refresh in browser clients, use credentials:
+
+- `fetch`: `credentials: "include"`
+- axios: `withCredentials: true`
+
+---
+
+## 4) Multi-Business Context (Important)
+
+The API is business-aware.
+
+- Access token carries:
+  - `userId`
+  - `activeBusinessId`
+  - `activeRole`
+- Invitation routes (`/invitations`) use this active business context.
+- Frontend does **not** send business ID for invitation list/create/resend/expire.
+- To change business context, call `POST /api/v1/auth/switch-business/:id`, then store the **new returned access token**.
+
+---
+
+## 5) Authentication Endpoints
+
+### POST `/api/v1/auth/register`
+
+Create user + first business, and send email verification code.
+
+Body:
+
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "businessName": "Acme LLC"
+}
+```
+
+Notes:
+
+- `password` min length is 8.
+- User is created with `emailVerified: false`.
+
+---
+
+### POST `/api/v1/auth/verify-email`
+
+Verify code and auto-login.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "code": "123456"
+}
+```
+
+Returns:
+
+- `token` (access token)
+- `refreshToken`
+- `user`
+- `activeBusiness`
+- `businesses`
+
+---
+
+### POST `/api/v1/auth/resend-verification`
+
+Resend verification code.
+
+Body:
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+---
+
+### POST `/api/v1/auth/login`
+
+Login existing user.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+Notes:
+
+- Login is blocked if email is not verified.
+
+---
+
+### POST `/api/v1/auth/refresh`
+
+Get new access token.
+
+Body (optional):
+
+```json
+{
+  "refreshToken": "optional-if-cookie-is-used"
+}
+```
+
+Notes:
+
+- Works with body token and/or HttpOnly cookie.
+- Save returned `token` on frontend.
+
+---
+
+### POST `/api/v1/auth/password-reset/request`
+
+Send password reset OTP code.
+
+Body:
+
+```json
+{
+  "email": "john@example.com"
+}
+```
+
+---
+
+### POST `/api/v1/auth/password-reset/confirm`
+
+Verify reset code and set new password.
+
+Body:
+
+```json
+{
+  "email": "john@example.com",
+  "code": "123456",
+  "password": "newpassword123"
+}
+```
+
+---
+
+### POST `/api/v1/auth/switch-business/:id` (Protected)
+
+Switch active business context.
+
+Params:
+
+- `id` = business ID
+
+Notes:
+
+- Returns a **new token** with updated `activeBusinessId` and role.
+- Frontend must replace old token immediately.
+
+---
+
+### POST `/api/v1/auth/logout` (Protected)
+
+Invalidate refresh token on server.
+
+---
+
+## 6) Business Endpoints
+
+### POST `/api/v1/businesses` (Protected)
+
+Create additional business and set it as active.
+
+Body:
+
+```json
+{
+  "name": "Second Business",
+  "logoUrl": null,
+  "currency": "USD",
+  "location": {
+    "street": null,
+    "city": null,
+    "state": null,
+    "zip": null,
+    "country": null
+  },
+  "phoneNumber": null,
+  "phoneCountry": null
+}
+```
+
+Notes:
+
+- Only `name` is required.
+- `currency` must be 3 chars if provided.
+- Returns updated `token`, `activeBusiness`, and `businesses`.
+
+---
+
+### GET `/api/v1/businesses` (Protected)
+
+Get all active businesses for current user.
+
+---
+
+### GET `/api/v1/businesses/:id` (Protected)
+
+Get business details if user is an active member.
+
+Params:
+
+- `id` = business ID (ObjectId format)
+
+---
+
+### PATCH `/api/v1/businesses/:id` (Protected)
+
+Update business fields.
+
+Params:
+
+- `id` = business ID (ObjectId format)
+
+Body:
+
+- Any subset of:
+  - `name`
+  - `logoUrl`
+  - `currency`
+  - `location.street`
+  - `location.city`
+  - `location.state`
+  - `location.zip`
+  - `location.country`
+  - `phoneNumber`
+  - `phoneCountry`
+
+Rules:
+
+- At least one field is required.
+- Allowed roles: `owner`, `admin`.
+
+---
+
+### DELETE `/api/v1/businesses/:id` (Protected)
+
+Soft delete business.
+
+Rules:
+
+- Only `owner`.
+
+Side effects:
+
+- Marks business deleted.
+- Removes active memberships in that business.
+- Reassigns users' `activeBusiness` to another active business if available.
+
+---
+
+## 7) Invitation Endpoints
+
+All business-scoped invitation operations use the active business from token.
+
+Roles allowed for management endpoints:
+
+- `owner`, `admin`
+
+### POST `/api/v1/invitations` (Protected + business scope)
+
+Create invitation for active business.
+
+Body:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "staff"
+}
+```
+
+Role enum:
+
+- `owner`, `admin`, `staff`, `viewer`
+
+Behavior:
+
+- Rejects if user is already active member in that business.
+- Rejects if pending invite already exists for same email in that business.
+
+---
+
+### GET `/api/v1/invitations` (Protected + business scope)
+
+List invitations for current active business.
+
+No `businessId` is passed by frontend.
+
+Business is inferred from token context.
+
+---
+
+### POST `/api/v1/invitations/:id/resend` (Protected + business scope)
+
+Resend pending invitation email.
+
+Params:
+
+- `id` = invitation ID (ObjectId format)
+
+---
+
+### PATCH `/api/v1/invitations/:id/expire` (Protected + business scope)
+
+Expire pending invitation.
+
+Params:
+
+- `id` = invitation ID (ObjectId format)
+
+---
+
+### GET `/api/v1/invitations/accept/:token` (Public)
+
+Get invitation details for invite-accept page.
+
+Params:
+
+- `token` = invitation token
+
+Returns:
+
+- invited `email`
+- invited `role`
+- business name/id
+- inviter name
+
+---
+
+### POST `/api/v1/invitations/accept/:token` (Public)
+
+Accept invitation using OTP and registration fields.
+
+Params:
+
+- `token` = invitation token
+
+Body:
+
+```json
+{
+  "email": "member@example.com",
+  "role": "staff",
+  "otp": "123456",
+  "name": "New Member",
+  "password": "password123"
+}
+```
+
+Rules:
+
+- `email` must match invited email.
+- `role` must match invited role.
+- `otp` must be 6 chars.
+- If user already exists, membership is added to business.
+- If user does not exist, user is created then membership is added.
+
+---
+
+## 8) Health/Demo Endpoint
+
+### GET `/api/v1/hello`
+
+Simple hello response.
+
+---
+
+## 9) Common Frontend Flow
+
+1. Register user (`/auth/register`)
+2. Verify email (`/auth/verify-email`) and store returned access token
+3. Call protected APIs with `Authorization: Bearer <token>`
+4. On 401/expired token, call `/auth/refresh`, replace token, retry
+5. If user changes business, call `/auth/switch-business/:id`, replace token
+6. Use invitation endpoints without passing business ID (business comes from token context)
+
+---
+
+## 10) Route Source of Truth
+
+- Auth routes: `src/routes/api/v1/auth.js`
+- Business routes: `src/routes/api/v1/businesses.js`
+- Invitation routes: `src/routes/api/v1/invitations.js`
+- Hello route: `src/routes/api/v1/hello.js`
+- Auth validation: `src/validators/authValidator.js`
+- Business validation: `src/validators/businessValidator.js`
+- Invitation validation: `src/validators/invitationValidator.js`
 # API Documentation
 
 ## Overview
@@ -415,6 +1377,8 @@ All errors follow this shape:
 
 - `POST /api/v1/invitations`
 - Description: Invite a new member to the current business.
+- Authorization:
+  - only `owner` and `admin` can create invitations
 - Headers:
   - `Authorization: Bearer <token>`
 - Body:
@@ -456,6 +1420,8 @@ All errors follow this shape:
 
 - `POST /api/v1/invitations/:id/resend`
 - Description: Resend a pending invitation email.
+- Authorization:
+  - only `owner` and `admin` can resend invitations
 - Headers:
   - `Authorization: Bearer <token>`
 - Example response:
@@ -472,6 +1438,8 @@ All errors follow this shape:
 
 - `PATCH /api/v1/invitations/:id/expire`
 - Description: Expire a pending invitation.
+- Authorization:
+  - only `owner` and `admin` can manually expire invitations
 - Headers:
   - `Authorization: Bearer <token>`
 - Example response:
@@ -484,14 +1452,25 @@ All errors follow this shape:
 }
 ```
 
+### Get invitation details by token
+
+- `GET /api/v1/invitations/accept/:token`
+- Description: Get prefilled invitation details for the accept-registration screen.
+- Returns:
+  - invited `email`
+  - invited `role`
+  - business details
+
 ### Accept invitation
 
 - `POST /api/v1/invitations/accept/:token`
-- Description: Accept an invitation with token and OTP.
+- Description: Accept invitation and create member account from registration form.
 - Body:
+  - `email` (string, required, must match invited email)
+  - `role` (string, required, must match invited role)
   - `otp` (string, required)
-  - `name` (string, required if user does not exist)
-  - `password` (string, required if user does not exist)
+  - `name` (string, required)
+  - `password` (string, required)
 - Example response:
 
 ```json

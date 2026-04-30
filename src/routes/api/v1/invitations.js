@@ -1,6 +1,7 @@
 import express from "express";
 import {
   sendInvitation,
+  getInvitationDetailsByToken,
   acceptInvitation,
   getInvitations,
   expireInvitation,
@@ -13,6 +14,8 @@ import {
 import { validateRequest } from "../../../middleware/validateRequest.js";
 import {
   sendInvitationSchema,
+  invitationIdParamsSchema,
+  invitationTokenParamsSchema,
   acceptInvitationSchema,
 } from "../../../validators/invitationValidator.js";
 
@@ -26,8 +29,25 @@ router.post(
   sendInvitation
 );
 router.get("/", authenticate, businessScope, getInvitations);
-router.post("/:id/resend", authenticate, businessScope, resendInvitation);
-router.patch("/:id/expire", authenticate, businessScope, expireInvitation);
+router.post(
+  "/:id/resend",
+  authenticate,
+  businessScope,
+  validateRequest(invitationIdParamsSchema),
+  resendInvitation
+);
+router.patch(
+  "/:id/expire",
+  authenticate,
+  businessScope,
+  validateRequest(invitationIdParamsSchema),
+  expireInvitation
+);
+router.get(
+  "/accept/:token",
+  validateRequest(invitationTokenParamsSchema),
+  getInvitationDetailsByToken
+);
 router.post(
   "/accept/:token",
   validateRequest(acceptInvitationSchema),
