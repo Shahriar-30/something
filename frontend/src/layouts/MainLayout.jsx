@@ -1,9 +1,8 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import {
   Layout,
   Users,
   PieChart,
-  Layers,
   Settings,
   Search,
   Bell,
@@ -12,66 +11,162 @@ import {
   CreditCard,
   LifeBuoy,
   BarChart3,
+  LogOut,
+  ChevronDown,
+  Building2,
 } from "lucide-react";
+import { useState } from "react";
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
+import useAuthStore from "@/store/useAuthStore";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const navClass = ({ isActive }) =>
   cn(
     "flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-all",
     isActive
       ? "bg-notion-light-gray text-primary border-l-2 border-primary rounded-l-none -ml-px"
-      : "text-notion-dark hover:bg-notion-light-gray",
+      : "text-notion-dark hover:bg-notion-light-gray"
   );
 
 export default function MainLayout() {
+  const { user, activeBusiness, businesses } = useAuthStore();
+  const { logout } = useAuth();
+  const { businessId } = useParams();
+  const navigate = useNavigate();
+  const [isBusinessMenuOpen, setIsBusinessMenuOpen] = useState(false);
+
+  const getInitials = (name) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  const handleSwitchBusiness = (newBusinessId) => {
+    // Navigating to the new businessId URL will trigger the BusinessContextSync component
+    // to perform the switchBusiness API call and update the token.
+    navigate(`/${newBusinessId}`, { replace: true });
+    setIsBusinessMenuOpen(false);
+  };
+
   return (
     <div className="h-screen bg-background text-foreground flex font-sans transition-colors duration-300 overflow-hidden">
       {/* Sidebar - Zendesk style but Notion aesthetic */}
-      <aside className="w-64 bg-notion-bg/50 border-r border-border hidden lg:flex flex-col shrink-0 h-full">
-        <div className="p-6 flex items-center gap-2">
-          <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">
-            S
-          </div>
-          <span className="text-lg font-bold tracking-tight text-notion-black">
-            Something CRM
-          </span>
+      <aside className="w-64 bg-notion-bg/50 border-r border-border hidden lg:flex flex-col shrink-0 h-full relative">
+        <div className="p-4 border-b border-border">
+          <button
+            onClick={() => setIsBusinessMenuOpen(!isBusinessMenuOpen)}
+            className="w-full flex items-center justify-between p-2 rounded-md hover:bg-notion-light-gray transition-colors group"
+          >
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="h-8 w-8 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs shrink-0">
+                {activeBusiness?.name?.[0] || "S"}
+              </div>
+              <div className="flex flex-col items-start overflow-hidden">
+                <span className="text-sm font-bold tracking-tight text-notion-black truncate w-full">
+                  {activeBusiness?.name || "Something CRM"}
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  {activeBusiness?.role || "Owner"}
+                </span>
+              </div>
+            </div>
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform",
+                isBusinessMenuOpen && "rotate-180"
+              )}
+            />
+          </button>
+
+          {/* Business Switcher Menu */}
+          {isBusinessMenuOpen && (
+            <div className="absolute top-16 left-4 right-4 bg-background border border-border rounded-md shadow-lg z-50 py-1 overflow-hidden">
+              <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/30 border-b border-border mb-1">
+                Switch Business
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {businesses.map((biz) => (
+                  <button
+                    key={biz.id}
+                    onClick={() => handleSwitchBusiness(biz.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted transition-colors text-left",
+                      biz.id === businessId &&
+                        "bg-primary/5 text-primary font-medium"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "h-6 w-6 rounded-sm flex items-center justify-center text-[10px] font-bold",
+                        biz.id === businessId
+                          ? "bg-primary text-white"
+                          : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {biz.name[0]}
+                    </div>
+                    <div className="flex-1 truncate">
+                      <div className="truncate">{biz.name}</div>
+                      <div className="text-[10px] text-muted-foreground capitalize">
+                        {biz.role}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-border mt-1 pt-1">
+                <NavLink
+                  to={`/${businessId}/settings/business`}
+                  className="flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:bg-muted transition-colors"
+                  onClick={() => setIsBusinessMenuOpen(false)}
+                >
+                  <Building2 className="w-4 h-4" />
+                  Business Settings
+                </NavLink>
+              </div>
+            </div>
+          )}
         </div>
         <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
-          <NavLink to="/" end className={navClass}>
+          <NavLink to={`/${businessId}`} end className={navClass}>
             <PieChart className="w-4 h-4" />
             Dashboard
           </NavLink>
-          <NavLink to="/contacts" className={navClass}>
+          <NavLink to={`/${businessId}/contacts`} className={navClass}>
             <Users className="w-4 h-4" />
             Contacts
           </NavLink>
-          <NavLink to="/deals" className={navClass}>
+          <NavLink to={`/${businessId}/deals`} className={navClass}>
             <Handshake className="w-4 h-4" />
             Deals
           </NavLink>
-          <NavLink to="/billing" className={navClass}>
+          <NavLink to={`/${businessId}/billing`} className={navClass}>
             <CreditCard className="w-4 h-4" />
             Billing
           </NavLink>
-          <NavLink to="/activities" className={navClass}>
+          <NavLink to={`/${businessId}/activities`} className={navClass}>
             <Activity className="w-4 h-4" />
             Activities
           </NavLink>
-          <NavLink to="/support" className={navClass}>
+          <NavLink to={`/${businessId}/support`} className={navClass}>
             <LifeBuoy className="w-4 h-4" />
             Support
           </NavLink>
-          <NavLink to="/reports" className={navClass}>
+          <NavLink to={`/${businessId}/reports`} className={navClass}>
             <BarChart3 className="w-4 h-4" />
             Reports
           </NavLink>
-          <NavLink to="/settings" className={navClass}>
+          <NavLink to={`/${businessId}/settings`} className={navClass}>
             <Settings className="w-4 h-4" />
             Settings
           </NavLink>
-          <NavLink to="/design-system" className={navClass}>
+          <NavLink to={`/${businessId}/design-system`} className={navClass}>
             <Layout className="w-4 h-4" />
             Design System
           </NavLink>
@@ -81,16 +176,23 @@ export default function MainLayout() {
           <ThemeToggle />
           <div className="flex items-center gap-3 px-2 py-2">
             <Avatar status="online" className="h-8 w-8">
-              JD
+              {getInitials(user?.name)}
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate text-notion-black">
-                John Doe
+                {user?.name || "User"}
               </p>
               <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-                Administrator
+                {activeBusiness?.role || "Member"}
               </p>
             </div>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
+              title="Logout"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </aside>
@@ -115,7 +217,7 @@ export default function MainLayout() {
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full border border-background"></span>
             </button>
             <Avatar className="h-8 w-8 cursor-pointer" status="online">
-              JD
+              {getInitials(user?.name)}
             </Avatar>
           </div>
         </header>

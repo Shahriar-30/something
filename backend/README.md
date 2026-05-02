@@ -142,7 +142,6 @@ import {
   sendUnauthorized,
   sendForbidden,
   sendConflict,
-  sendRateLimitExceeded,
 } from "./utils/response/index.js";
 
 // 404 Not Found
@@ -156,9 +155,6 @@ return sendForbidden(res, "Insufficient permissions");
 
 // 409 Conflict
 return sendConflict(res, "User already exists");
-
-// 429 Too Many Requests
-return sendRateLimitExceeded(res);
 ```
 
 ## Setup
@@ -209,7 +205,6 @@ Set `NODE_ENV=production` in production to hide error details from responses.
 - `sendUnauthorized(res, message)` - Send unauthorized error (401)
 - `sendForbidden(res, message)` - Send forbidden error (403)
 - `sendConflict(res, message)` - Send conflict error (409)
-- `sendRateLimitExceeded(res, message)` - Send rate limit error (429)
 
 ### Utility Functions
 

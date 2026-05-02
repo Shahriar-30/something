@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, loading } = useAuth();
+  const { login, isLoading: loading } = useAuth();
   
   const [formData, setFormData] = useState({
     email: '',

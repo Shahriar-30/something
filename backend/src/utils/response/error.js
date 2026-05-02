@@ -104,13 +104,3 @@ export const sendForbidden = (res, message = "Access forbidden") => {
 export const sendConflict = (res, message = "Resource conflict") => {
   return sendError(res, message, 409);
 };
-
-/**
- * Rate limit exceeded handler
- * @param {Object} res - Express response object
- * @param {string} message - Custom message (optional)
- * @returns {Object} Standardized rate limit response
- */
-export const sendRateLimitExceeded = (res, message = "Too many requests") => {
-  return sendError(res, message, 429);
-};

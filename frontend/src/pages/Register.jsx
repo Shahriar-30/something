@@ -16,7 +16,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const Register = () => {
   const navigate = useNavigate();
-  const { register, loading } = useAuth();
+  const { register, isLoading: loading } = useAuth();
 
   const [formData, setFormData] = useState({
     name: "",

@@ -1,23 +1,63 @@
 import { apiClient } from "../../../api/client";
 
-export const authService = {
-  register: async (userData) => {
-    return apiClient.post("/auth/register", userData);
-  },
+/**
+ * Authentication service for handling all auth-related API calls.
+ */
+const authService = {
+  /**
+   * Register a new user and business
+   * @param {Object} data - { name, email, password, businessName }
+   */
+  register: (data) => apiClient.post("/auth/register", data),
 
-  verifyEmail: async (verificationData) => {
-    return apiClient.post("/auth/verify-email", verificationData);
-  },
+  /**
+   * Login user
+   * @param {Object} data - { email, password }
+   */
+  login: (data) => apiClient.post("/auth/login", data),
 
-  resendVerification: async (email) => {
-    return apiClient.post("/auth/resend-verification", { email });
-  },
+  /**
+   * Verify email with 6-digit code
+   * @param {Object} data - { email, code }
+   */
+  verifyEmail: (data) => apiClient.post("/auth/verify-email", data),
 
-  login: async (credentials) => {
-    return apiClient.post("/auth/login", credentials);
-  },
+  /**
+   * Resend verification email
+   * @param {Object} data - { email }
+   */
+  resendVerification: (data) => apiClient.post("/auth/resend-verification", data),
 
-  logout: async () => {
-    return apiClient.post("/auth/logout");
-  },
+  /**
+   * Request password reset code
+   * @param {Object} data - { email }
+   */
+  requestPasswordReset: (data) =>
+    apiClient.post("/auth/password-reset/request", data),
+
+  /**
+   * Confirm password reset with code
+   * @param {Object} data - { email, code, password }
+   */
+  confirmPasswordReset: (data) =>
+    apiClient.post("/auth/password-reset/confirm", data),
+
+  /**
+   * Switch active business context
+   * @param {string} businessId
+   */
+  switchBusiness: (businessId) =>
+    apiClient.post(`/auth/switch-business/${businessId}`),
+
+  /**
+   * Refresh access token manually (if needed)
+   */
+  refresh: () => apiClient.post("/auth/refresh"),
+
+  /**
+   * Logout user and clear session
+   */
+  logout: () => apiClient.post("/auth/logout"),
 };
+
+export default authService;

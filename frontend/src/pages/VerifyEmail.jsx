@@ -16,15 +16,13 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 const VerifyEmail = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { verifyEmail, resendVerification, loading } = useAuth();
+  const { verifyEmail, resendVerification, isLoading: loading } = useAuth();
   const email = location.state?.email;
 
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
-  const [resendAttempts, setResendAttempts] = useState(0);
-  const [lastResendTime, setLastResendTime] = useState(null);
 
   const inputRefs = [
     useRef(),
@@ -115,22 +113,8 @@ const VerifyEmail = () => {
     setError(null);
     setSuccess(null);
 
-    // Rate limiting check: max 3 attempts in 10 minutes
-    const now = Date.now();
-    if (resendAttempts >= 3) {
-      if (lastResendTime && now - lastResendTime < 10 * 60 * 1000) {
-        setError("Maximum resend attempts reached. Please try again later.");
-        return;
-      } else {
-        // Reset attempts if 10 minutes have passed
-        setResendAttempts(0);
-      }
-    }
-
     try {
       await resendVerification(email);
-      setResendAttempts((prev) => prev + 1);
-      setLastResendTime(now);
       setCountdown(600); // Reset countdown
       setSuccess("New verification code sent to your email");
       setOtp(["", "", "", "", "", ""]);

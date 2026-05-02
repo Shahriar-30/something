@@ -2,30 +2,27 @@
  * Express Application Configuration
  *
  * This file configures the main Express application with security middleware,
- * rate limiting, routing, and error handling. It's designed as a SaaS application
+ * routing, and error handling. It's designed as a SaaS application
  * with production-ready security measures.
  *
  * Security Features:
  * - Helmet for security headers
- * - Rate limiting to prevent abuse
- * - CORS protection (to be added)
+ * - CORS protection
  * - Input sanitization
  *
  * Middleware Stack:
  * 1. Security (helmet)
- * 2. Rate limiting
- * 3. Body parsing (JSON/URL-encoded)
- * 4. Response time tracking
- * 5. Routes
- * 6. 404 handler
- * 7. Global error handler
+ * 2. Body parsing (JSON/URL-encoded)
+ * 3. Response time tracking
+ * 4. Routes
+ * 5. 404 handler
+ * 6. Global error handler
  */
 
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
 import path from "path";
 import { fileURLToPath } from "url";
 import { sendError } from "./utils/response/index.js";
@@ -40,40 +37,53 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
- * Rate Limiting Configuration
- *
- * Protects against brute force attacks and API abuse by limiting
- * the number of requests per IP address within a time window.
- *
- * Current settings: 100 requests per 15 minutes per IP
- */
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes time window
-  max: 100, // Maximum 100 requests per window per IP
-  standardHeaders: true, // Include rate limit info in headers
-  legacyHeaders: false, // Disable legacy headers
-});
-
-/**
  * Security Middleware Stack
  *
- * 1. Helmet - Sets various HTTP security headers
- * 2. Rate Limiter - Prevents abuse and DoS attacks
+ * 1. CORS - Cross-Origin Resource Sharing (Must be first to handle preflight)
+ * 2. Helmet - Sets various HTTP security headers
  * 3. JSON Parser - Parses JSON request bodies
- * 4. URL-encoded Parser - Parses form data
- * 5. Response Time Tracker - Logs request duration
  */
+
+// Enable CORS with specific options for preflight and credentials
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      // In development, allow localhost. In production, you would add your domain.
+      const allowedOrigins = [
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+      ];
+
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+    ],
+    optionsSuccessStatus: 200, // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  })
+);
+
 app.use(helmet()); // Security headers
-app.use(limiter); // Rate limiting
+
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
-app.use(
-  cors({
-    origin: true,
-    credentials: true,
-  })
-);
 app.use(responseTimeMiddleware); // Track response times
 app.use("/crm", express.static(path.join(__dirname, "public")));
 

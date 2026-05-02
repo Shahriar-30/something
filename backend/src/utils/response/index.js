@@ -9,7 +9,6 @@ export {
   sendUnauthorized,
   sendForbidden,
   sendConflict,
-  sendRateLimitExceeded,
 } from "./error.js";
 
 // Helper utilities
