@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRM Contacts MVP</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+      input,
+      textarea,
+      button {
+        padding: 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 16px;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      th {
+        background: #f4f4f4;
+      }
+      .muted {
+        color: #666;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Contacts + Leads MVP</h2>
+    <p class="muted">Token + business scope comes from your active JWT.</p>
+
+    <div class="row">
+      <input id="baseUrl" value="/api/v1" style="width: 120px" />
+      <input id="token" placeholder="Bearer token" style="flex: 1" />
+      <button id="loadContactsBtn">Load Contacts</button>
+    </div>
+
+    <div class="row">
+      <input id="contactTitle" placeholder="Contact title" />
+      <textarea id="fieldSchema" rows="3" cols="60">
+[{"key":"name","label":"Name","type":"text","required":true},{"key":"email","label":"Email","type":"email"}]</textarea
+      >
+      <button id="createContactBtn">Create Contact</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Contact ID</th>
+          <th>Title</th>
+          <th>Fields</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="contactsBody"></tbody>
+    </table>
+
+    <script>
+      const el = (id) => document.getElementById(id);
+
+      const authHeaders = () => ({
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${el("token").value.trim()}`,
+      });
+
+      const loadContacts = async () => {
+        const res = await fetch(`${el("baseUrl").value}/contacts`, {
+          headers: authHeaders(),
+        });
+        const json = await res.json();
+        const rows = json?.data?.contacts || [];
+        el("contactsBody").innerHTML = rows
+          .map(
+            (c) => `
+          <tr>
+            <td>${c._id}</td>
+            <td>${c.title}</td>
+            <td>${(c.fieldSchema || []).map((f) => f.key).join(", ")}</td>
+            <td><button onclick="openLeads('${c._id}')">Open Leads</button></td>
+          </tr>`
+          )
+          .join("");
+      };
+
+      const createContact = async () => {
+        const payload = {
+          title: el("contactTitle").value,
+          fieldSchema: JSON.parse(el("fieldSchema").value),
+        };
+        await fetch(`${el("baseUrl").value}/contacts`, {
+          method: "POST",
+          headers: authHeaders(),
+          body: JSON.stringify(payload),
+        });
+        await loadContacts();
+      };
+
+      window.openLeads = async (contactId) => {
+        const res = await fetch(`${el("baseUrl").value}/contacts/${contactId}/leads`, {
+          headers: authHeaders(),
+        });
+        const json = await res.json();
+        alert(`Leads found: ${json?.data?.leads?.length || 0}`);
+      };
+
+      el("loadContactsBtn").addEventListener("click", loadContacts);
+      el("createContactBtn").addEventListener("click", createContact);
+    </script>
+  </body>
+</html>
