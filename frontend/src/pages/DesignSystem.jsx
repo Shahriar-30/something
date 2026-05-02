@@ -45,6 +45,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Switch } from "@/components/ui/Switch";
 import { Progress } from "@/components/ui/Progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/Table";
 import { cn } from "@/lib/utils";
 
 const Section = ({ id, title, children, description }) => (
@@ -99,13 +109,22 @@ const DesignSystem = () => {
       {/* Sidebar TOC - Notion/Zendesk inspired */}
       <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-notion-bg/50 overflow-y-auto hidden lg:block">
         <div className="p-6">
-          <div className="flex items-center gap-2 mb-8">
-            <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">
-              S
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">
+                S
+              </div>
+              <span className="font-semibold text-notion-black tracking-tight">
+                Design System
+              </span>
             </div>
-            <span className="font-semibold text-notion-black tracking-tight">
-              Design System
-            </span>
+          </div>
+
+          <div className="mb-6 px-3">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
+              Theme
+            </p>
+            <ThemeToggle />
           </div>
 
           <nav className="space-y-1">
@@ -332,7 +351,7 @@ const DesignSystem = () => {
           description="Unobtrusive feedback components."
         >
           <div className="space-y-4">
-            <Alert>
+            <Alert variant="success">
               <CheckCircle2 className="h-4 w-4" />
               <AlertTitle>Success</AlertTitle>
               <AlertDescription>
@@ -392,48 +411,87 @@ const DesignSystem = () => {
               </Card>
             </div>
 
-            <div className="border border-border rounded-md overflow-hidden bg-white">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-notion-bg/50 border-b border-border">
-                  <tr className="font-mono text-[10px] uppercase tracking-wider">
-                    <th className="px-4 py-3 font-medium">Ticket ID</th>
-                    <th className="px-4 py-3 font-medium">Subject</th>
-                    <th className="px-4 py-3 font-medium">Priority</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {[1, 2, 3].map((i) => (
-                    <tr
-                      key={i}
-                      className="hover:bg-notion-bg/30 transition-colors group"
-                    >
-                      <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                        #INC-400{i}
-                      </td>
-                      <td className="px-4 py-3 font-medium">
-                        Issue with payment gateway integration
-                      </td>
-                      <td className="px-4 py-3">
+            <div className="border border-border rounded-md overflow-hidden bg-background">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ticket ID</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Priority</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Last Update</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[
+                    {
+                      id: "INC-4001",
+                      subject: "Payment gateway integration failure",
+                      priority: "High",
+                      status: "OPEN",
+                      date: "2024-05-02",
+                    },
+                    {
+                      id: "INC-4002",
+                      subject: "User session timeout issue",
+                      priority: "Normal",
+                      status: "PENDING",
+                      date: "2024-05-01",
+                    },
+                    {
+                      id: "INC-4003",
+                      subject: "Dashboard loading slow in Safari",
+                      priority: "Low",
+                      status: "RESOLVED",
+                      date: "2024-04-30",
+                    },
+                  ].map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-mono text-xs text-muted-foreground">
+                        #{row.id}
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {row.subject}
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <div
                             className={cn(
                               "w-1 h-4 rounded-full",
-                              i === 1 ? "bg-destructive" : "bg-amber-500",
+                              row.priority === "High"
+                                ? "bg-destructive"
+                                : row.priority === "Normal"
+                                  ? "bg-amber-500"
+                                  : "bg-primary",
                             )}
                           />
-                          {i === 1 ? "High" : "Normal"}
+                          {row.priority}
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="secondary" className="text-[10px]">
-                          OPEN
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            row.status === "RESOLVED"
+                              ? "default"
+                              : row.status === "PENDING"
+                                ? "secondary"
+                                : "outline"
+                          }
+                          className="text-[10px]"
+                        >
+                          {row.status}
                         </Badge>
-                      </td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                        {row.date}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+                <TableCaption>
+                  A list of your recent support tickets.
+                </TableCaption>
+              </Table>
             </div>
           </div>
         </Section>
@@ -444,7 +502,7 @@ const DesignSystem = () => {
           title="App Shell Mockup"
           description="Zendesk layout with Notion aesthetics."
         >
-          <div className="border border-border rounded-lg overflow-hidden h-[600px] flex bg-white shadow-2xl scale-[0.95] origin-top">
+          <div className="border border-border rounded-lg overflow-hidden h-[600px] flex bg-background shadow-2xl scale-[0.95] origin-top">
             {/* Zendesk-style Sticky Sidebar */}
             <div className="w-14 bg-notion-black flex flex-col items-center py-4 gap-4">
               <div className="h-8 w-8 bg-primary rounded-md flex items-center justify-center text-white font-bold">
@@ -496,7 +554,7 @@ const DesignSystem = () => {
 
             {/* Content Area */}
             <div className="flex-1 flex flex-col">
-              <header className="h-12 border-b border-border flex items-center px-6 justify-between bg-white">
+              <header className="h-12 border-b border-border flex items-center px-6 justify-between bg-background">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -517,7 +575,7 @@ const DesignSystem = () => {
                 </div>
               </header>
 
-              <div className="flex-1 overflow-y-auto p-8 bg-white">
+              <div className="flex-1 overflow-y-auto p-8 bg-background">
                 <div className="max-w-3xl mx-auto">
                   <div className="flex items-center gap-2 mb-4">
                     <Badge

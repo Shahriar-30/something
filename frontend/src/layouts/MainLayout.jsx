@@ -1,6 +1,15 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { Layout, Users, PieChart, Layers, Settings } from "lucide-react";
+import {
+  Layout,
+  Users,
+  PieChart,
+  Layers,
+  Settings,
+  Search,
+  Bell,
+} from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const navClass = ({ isActive }) =>
@@ -8,16 +17,18 @@ const navClass = ({ isActive }) =>
     "flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-all",
     isActive
       ? "bg-notion-light-gray text-primary border-l-2 border-primary rounded-l-none -ml-px"
-      : "text-notion-dark hover:bg-notion-light-gray"
+      : "text-notion-dark hover:bg-notion-light-gray",
   );
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-sans">
+    <div className="min-h-screen bg-background text-foreground flex font-sans transition-colors duration-300">
       {/* Sidebar - Zendesk style but Notion aesthetic */}
       <aside className="w-64 bg-notion-bg/50 border-r border-border hidden lg:flex flex-col">
         <div className="p-6 flex items-center gap-2">
-          <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">S</div>
+          <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">
+            S
+          </div>
           <span className="text-lg font-bold tracking-tight text-notion-black">
             Something CRM
           </span>
@@ -35,7 +46,7 @@ export default function MainLayout() {
             <Layout className="w-4 h-4" />
             Design System
           </NavLink>
-          
+
           <div className="pt-6 pb-2 px-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
             Sales
           </div>
@@ -44,13 +55,20 @@ export default function MainLayout() {
             Leads
           </button>
         </nav>
-        
-        <div className="p-4 border-t border-border bg-notion-bg/20">
+
+        <div className="p-4 border-t border-border bg-notion-bg/20 space-y-4">
+          <ThemeToggle />
           <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar status="online" className="h-8 w-8">JD</Avatar>
+            <Avatar status="online" className="h-8 w-8">
+              JD
+            </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-notion-black">John Doe</p>
-              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Administrator</p>
+              <p className="text-sm font-semibold truncate text-notion-black">
+                John Doe
+              </p>
+              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
+                Administrator
+              </p>
             </div>
             <Settings className="w-4 h-4 text-notion-gray cursor-pointer hover:text-notion-black transition-colors" />
           </div>
@@ -59,6 +77,29 @@ export default function MainLayout() {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Global Header */}
+        <header className="h-14 border-b border-border bg-background flex items-center px-6 justify-between sticky top-0 z-10 transition-colors duration-300">
+          <div className="flex-1 max-w-md">
+            <div className="relative group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+              <input
+                type="text"
+                placeholder="Search..."
+                className="w-full bg-muted/50 border border-transparent rounded-md py-1.5 pl-10 pr-4 text-sm focus:outline-none focus:bg-background focus:border-primary transition-all"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <button className="h-8 w-8 rounded-md hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors relative">
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full border border-background"></span>
+            </button>
+            <Avatar className="h-8 w-8 cursor-pointer" status="online">
+              JD
+            </Avatar>
+          </div>
+        </header>
+
         <div className="flex-1 overflow-y-auto">
           <Outlet />
         </div>
