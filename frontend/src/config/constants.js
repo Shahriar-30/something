@@ -6,6 +6,6 @@ export const ROUTES = {
 };
 
 export const APP_CONFIG = {
-  NAME: 'CRM Application',
-  VERSION: '1.0.0',
+  NAME: import.meta.env.VITE_APP_NAME || 'CRM Application',
+  VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
 };

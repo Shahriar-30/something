@@ -7,6 +7,11 @@ import {
   Settings,
   Search,
   Bell,
+  Handshake,
+  Activity,
+  CreditCard,
+  LifeBuoy,
+  BarChart3,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -22,9 +27,9 @@ const navClass = ({ isActive }) =>
 
 export default function MainLayout() {
   return (
-    <div className="min-h-screen bg-background text-foreground flex font-sans transition-colors duration-300">
+    <div className="h-screen bg-background text-foreground flex font-sans transition-colors duration-300 overflow-hidden">
       {/* Sidebar - Zendesk style but Notion aesthetic */}
-      <aside className="w-64 bg-notion-bg/50 border-r border-border hidden lg:flex flex-col">
+      <aside className="w-64 bg-notion-bg/50 border-r border-border hidden lg:flex flex-col shrink-0 h-full">
         <div className="p-6 flex items-center gap-2">
           <div className="h-6 w-6 bg-primary rounded-sm flex items-center justify-center text-white font-bold text-xs">
             S
@@ -33,7 +38,7 @@ export default function MainLayout() {
             Something CRM
           </span>
         </div>
-        <nav className="flex-1 px-4 py-2 space-y-1">
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
           <NavLink to="/" end className={navClass}>
             <PieChart className="w-4 h-4" />
             Dashboard
@@ -42,18 +47,34 @@ export default function MainLayout() {
             <Users className="w-4 h-4" />
             Contacts
           </NavLink>
+          <NavLink to="/deals" className={navClass}>
+            <Handshake className="w-4 h-4" />
+            Deals
+          </NavLink>
+          <NavLink to="/billing" className={navClass}>
+            <CreditCard className="w-4 h-4" />
+            Billing
+          </NavLink>
+          <NavLink to="/activities" className={navClass}>
+            <Activity className="w-4 h-4" />
+            Activities
+          </NavLink>
+          <NavLink to="/support" className={navClass}>
+            <LifeBuoy className="w-4 h-4" />
+            Support
+          </NavLink>
+          <NavLink to="/reports" className={navClass}>
+            <BarChart3 className="w-4 h-4" />
+            Reports
+          </NavLink>
+          <NavLink to="/settings" className={navClass}>
+            <Settings className="w-4 h-4" />
+            Settings
+          </NavLink>
           <NavLink to="/design-system" className={navClass}>
             <Layout className="w-4 h-4" />
             Design System
           </NavLink>
-
-          <div className="pt-6 pb-2 px-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-            Sales
-          </div>
-          <button className="w-full flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium text-notion-dark hover:bg-notion-light-gray transition-all">
-            <Layers className="w-4 h-4 text-notion-gray" />
-            Leads
-          </button>
         </nav>
 
         <div className="p-4 border-t border-border bg-notion-bg/20 space-y-4">
@@ -70,7 +91,6 @@ export default function MainLayout() {
                 Administrator
               </p>
             </div>
-            <Settings className="w-4 h-4 text-notion-gray cursor-pointer hover:text-notion-black transition-colors" />
           </div>
         </div>
       </aside>

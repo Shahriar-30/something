@@ -2,6 +2,10 @@
 
 A comprehensive, production-ready response handler utility for Express.js applications with standardized error handling, logging, and response formatting.
 
+## Documentation
+
+For detailed API documentation, including endpoint descriptions, request/response schemas, and authentication guides, please refer to the [API Documentation](API_DOCUMENTATION.md).
+
 ## File Structure
 
 ```

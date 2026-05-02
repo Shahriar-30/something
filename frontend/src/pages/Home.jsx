@@ -1,7 +1,12 @@
 import { HomeContent } from "../features/home";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/Card";
 import { Plus, TrendingUp, Users, Target } from "lucide-react";
 
 export default function Home() {
@@ -9,7 +14,9 @@ export default function Home() {
     <div className="p-8 lg:p-12 max-w-7xl mx-auto space-y-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-notion-black">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-notion-black">
+            Dashboard
+          </h1>
           <p className="text-muted-foreground mt-1">
             Welcome back to your CRM overview.
           </p>
@@ -35,7 +42,7 @@ export default function Home() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card className="bg-notion-bg/30">
           <CardHeader className="pb-2">
             <CardDescription className="text-[10px] font-mono uppercase tracking-widest flex items-center gap-2">
@@ -45,9 +52,7 @@ export default function Home() {
             <CardTitle className="text-2xl">452</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-xs text-primary font-bold">
-              8 new today
-            </div>
+            <div className="text-xs text-primary font-bold">8 new today</div>
           </CardContent>
         </Card>
 
@@ -70,7 +75,9 @@ export default function Home() {
       <Card>
         <CardHeader className="border-b border-border bg-notion-bg/10">
           <CardTitle>Recent Activity</CardTitle>
-          <CardDescription>Latest updates from your sales pipeline.</CardDescription>
+          <CardDescription>
+            Latest updates from your sales pipeline.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <HomeContent />
