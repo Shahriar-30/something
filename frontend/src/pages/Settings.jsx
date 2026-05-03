@@ -1,10 +1,14 @@
 import React from "react";
 import { NavLink, Outlet, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { User, Building2, CreditCard, LifeBuoy } from "lucide-react";
+import { User, Building2, Users, CreditCard, LifeBuoy } from "lucide-react";
+import useAuthStore from "@/store/useAuthStore";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 const Settings = () => {
   const { businessId } = useParams();
+  const { activeBusiness } = useAuthStore();
+  const userRole = activeBusiness?.role;
 
   const getTabClass = (isActive) =>
     cn(
@@ -40,13 +44,24 @@ const Settings = () => {
               <Building2 className="h-4 w-4" />
               Business
             </NavLink>
-            <NavLink
-              to={`/${businessId}/settings/billing`}
-              className={({ isActive }) => getTabClass(isActive)}
-            >
-              <CreditCard className="h-4 w-4" />
-              Billing
-            </NavLink>
+            {hasPermission(userRole, PERMISSIONS.MANAGE_MEMBERS) && (
+              <NavLink
+                to={`/${businessId}/settings/members`}
+                className={({ isActive }) => getTabClass(isActive)}
+              >
+                <Users className="h-4 w-4" />
+                Members
+              </NavLink>
+            )}
+            {hasPermission(userRole, PERMISSIONS.MANAGE_BILLING) && (
+              <NavLink
+                to={`/${businessId}/settings/billing`}
+                className={({ isActive }) => getTabClass(isActive)}
+              >
+                <CreditCard className="h-4 w-4" />
+                Billing
+              </NavLink>
+            )}
             <NavLink
               to={`/${businessId}/settings/support`}
               className={({ isActive }) => getTabClass(isActive)}

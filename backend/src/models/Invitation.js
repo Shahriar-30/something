@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
+import { env } from "../config/env.js";
 
 const { Schema, model } = mongoose;
 const SALT_ROUNDS = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
@@ -93,9 +94,9 @@ invitationSchema.methods.isExpired = function () {
   return this.status === "expired" || this.status === "revoked";
 };
 
-invitationSchema.methods.getInviteLink = function (baseUrl) {
-  const normalizedBase = baseUrl?.replace(/\/$/, "") || "";
-  return `${normalizedBase}/auth/invite/accept/${this.token}`;
+invitationSchema.methods.getInviteLink = function () {
+  const frontendUrl = env.FRONTEND_URL.replace(/\/$/, "");
+  return `${frontendUrl}/auth/invite/accept/${this.token}`;
 };
 
 export const Invitation = model("Invitation", invitationSchema);

@@ -293,10 +293,65 @@ export const login = asyncHandler(async (req, res) => {
       id: user._id,
       name: user.name,
       email: user.email,
+      emailVerified: user.emailVerified,
     },
     activeBusiness,
     businesses,
   });
+});
+
+/**
+ * Get current authenticated user profile
+ */
+export const getMe = asyncHandler(async (req, res) => {
+  const { userId } = req.user;
+
+  const user = await User.findById(userId).select("-passwordHash -refreshTokenHash");
+  if (!user) {
+    return sendError(res, "User not found", 404);
+  }
+
+  const businesses = await getUserBusinesses(userId);
+  const activeBusiness = businesses.find(
+    (b) => b.id.toString() === user.activeBusiness?.toString()
+  );
+
+  return sendSuccess(res, "User profile retrieved successfully", {
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      avatarUrl: user.avatarUrl,
+    },
+    activeBusiness,
+    businesses,
+  });
+});
+
+/**
+ * Change user password
+ */
+export const changePassword = asyncHandler(async (req, res) => {
+  const { userId } = req.user;
+  const { currentPassword, newPassword } = req.validated.body;
+
+  const user = await User.findById(userId);
+  if (!user) {
+    return sendError(res, "User not found", 404);
+  }
+
+  const isValidPassword = await user.comparePassword(currentPassword);
+  if (!isValidPassword) {
+    return sendError(res, "Invalid current password", 400);
+  }
+
+  await user.setPassword(newPassword);
+  await user.save();
+
+  logger.info("User changed password", { userId });
+
+  return sendSuccess(res, "Password changed successfully");
 });
 
 /**

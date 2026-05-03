@@ -27,4 +27,6 @@ export const env = {
   REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN || "30d",
   EMAIL_VERIFICATION_CODE_TTL_MINUTES:
     process.env.EMAIL_VERIFICATION_CODE_TTL_MINUTES || "15",
+  BASE_URL: process.env.BASE_URL || "http://localhost:8080",
+  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5173",
 };

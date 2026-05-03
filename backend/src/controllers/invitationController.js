@@ -1,5 +1,11 @@
 import crypto from "crypto";
-import { Business, BusinessMember, Invitation, User } from "../models/index.js";
+import {
+  Business,
+  BusinessMember,
+  Invitation,
+  User,
+  BusinessMemberAuditLog,
+} from "../models/index.js";
 import {
   sendSuccess,
   sendError,
@@ -88,7 +94,7 @@ export const sendInvitation = asyncHandler(async (req, res) => {
   await invitation.setOtp(otp);
 
   // Generate invite link
-  const inviteLink = invitation.getInviteLink(BASE_URL);
+  const inviteLink = invitation.getInviteLink();
   const inviter = await User.findById(userId);
 
   // Send email using EmailService
@@ -103,6 +109,15 @@ export const sendInvitation = asyncHandler(async (req, res) => {
     });
 
     await invitation.save();
+
+    // Log invitation sent
+    await BusinessMemberAuditLog.create({
+      businessId: activeBusinessId,
+      targetUserId: existingUser ? existingUser._id : null, // Target is not yet a user or exists
+      actorUserId: userId,
+      action: "invitation_sent",
+      newValue: { email, role },
+    });
 
     logger.info("Invitation sent successfully", {
       businessId: activeBusinessId,
@@ -150,6 +165,9 @@ export const getInvitationDetailsByToken = asyncHandler(async (req, res) => {
     return sendError(res, "This invitation has been expired", 410);
   }
 
+  // Check if user already exists
+  const existingUser = await User.findByEmail(invitation.email);
+
   return sendSuccess(res, "Invitation details retrieved successfully", {
     invitation: {
       token: invitation.token,
@@ -162,6 +180,8 @@ export const getInvitationDetailsByToken = asyncHandler(async (req, res) => {
       },
       invitedBy: invitation.invitedBy?.name || null,
       sentAt: invitation.sentAt,
+      userExists: !!existingUser,
+      userName: existingUser?.name || null,
     },
   });
 });
@@ -231,28 +251,62 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
     }
   } else {
     // Create new user from invitation acceptance form.
+    if (!password || password.length < 8) {
+      return sendValidationError(
+        res,
+        "Password is required and must be at least 8 characters for new users"
+      );
+    }
     user = new User({
       name: name.trim(),
       email: invitation.email,
+      emailVerified: true, // User verified email by providing correct OTP from invitation email
     });
 
     await user.setPassword(password);
     await user.save();
   }
 
-  // Create business membership
-  const membership = new BusinessMember({
+  // Ensure email is marked as verified for existing users as well
+  if (!user.emailVerified) {
+    user.emailVerified = true;
+    await user.save();
+  }
+
+  // Create or update business membership
+  let membership = await BusinessMember.findOne({
     businessId: invitation.businessId._id,
     userId: user._id,
-    role: invitation.role,
-    invitedBy: invitation.invitedBy._id,
   });
+
+  if (membership) {
+    membership.role = invitation.role;
+    membership.status = "active";
+    membership.invitedBy = invitation.invitedBy._id;
+    membership.joinedAt = new Date();
+  } else {
+    membership = new BusinessMember({
+      businessId: invitation.businessId._id,
+      userId: user._id,
+      role: invitation.role,
+      invitedBy: invitation.invitedBy._id,
+    });
+  }
   await membership.save();
 
   // Update invitation status
   invitation.status = "accepted";
   invitation.acceptedAt = new Date();
   await invitation.save();
+
+  // Log invitation accepted
+  await BusinessMemberAuditLog.create({
+    businessId: invitation.businessId._id,
+    targetUserId: user._id,
+    actorUserId: user._id, // User themselves accepted
+    action: "invitation_accepted",
+    newValue: { role: invitation.role },
+  });
 
   // Set active business for new users
   if (!user.activeBusiness) {
@@ -383,7 +437,7 @@ export const resendInvitation = asyncHandler(async (req, res) => {
   await invitation.save();
 
   // Generate invite link
-  const inviteLink = invitation.getInviteLink(BASE_URL);
+  const inviteLink = invitation.getInviteLink();
   const inviterName = invitation.invitedBy?.name || "A team member";
 
   // Send email using EmailService

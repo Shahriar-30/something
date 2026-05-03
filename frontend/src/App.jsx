@@ -2,9 +2,11 @@ import { lazy, Suspense } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import BusinessContextSync from "./components/BusinessContextSync";
 import useAuthStore from "./store/useAuthStore";
+import { PERMISSIONS } from "./lib/rbac";
 
 // Lazy load pages for performance optimization
 const Home = lazy(() => import("./pages/Home"));
@@ -15,12 +17,14 @@ const Login = lazy(() => import("./pages/Login"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const AcceptInvitation = lazy(() => import("./pages/AcceptInvitation"));
 const ComingSoon = lazy(() => import("./pages/ComingSoon"));
 const Settings = lazy(() => import("./pages/Settings"));
 const AccountSettings = lazy(() => import("./pages/AccountSettings"));
 const BillingSettings = lazy(() => import("./pages/BillingSettings"));
 const SupportSettings = lazy(() => import("./pages/SupportSettings"));
 const BusinessSettings = lazy(() => import("./pages/BusinessSettings"));
+const BusinessMembers = lazy(() => import("./pages/BusinessMembers"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -56,6 +60,11 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
+        <Route
+          path="/auth/invite/accept/:token"
+          element={<AcceptInvitation />}
+        />
+
         {/* Protected Routes - Accessible only when logged in */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<RootRedirect />} />
@@ -72,8 +81,33 @@ function App() {
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="account" replace />} />
                 <Route path="account" element={<AccountSettings />} />
-                <Route path="business" element={<BusinessSettings />} />
-                <Route path="billing" element={<BillingSettings />} />
+                <Route
+                  element={
+                    <RoleProtectedRoute
+                      allowedRoles={PERMISSIONS.VIEW_BUSINESS}
+                    />
+                  }
+                >
+                  <Route path="business" element={<BusinessSettings />} />
+                </Route>
+                <Route
+                  element={
+                    <RoleProtectedRoute
+                      allowedRoles={PERMISSIONS.MANAGE_MEMBERS}
+                    />
+                  }
+                >
+                  <Route path="members" element={<BusinessMembers />} />
+                </Route>
+                <Route
+                  element={
+                    <RoleProtectedRoute
+                      allowedRoles={PERMISSIONS.MANAGE_BILLING}
+                    />
+                  }
+                >
+                  <Route path="billing" element={<BillingSettings />} />
+                </Route>
                 <Route path="support" element={<SupportSettings />} />
               </Route>
               <Route path="design-system" element={<DesignSystem />} />

@@ -35,6 +35,6 @@ export const acceptInvitationSchema = z.object({
       .min(6, "OTP is required")
       .max(6, "OTP must be 6 characters"),
     name: z.string().min(1, "Name is required"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z.string().optional(),
   }),
 });

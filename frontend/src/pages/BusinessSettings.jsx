@@ -11,9 +11,11 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { Alert } from "@/components/ui/Alert";
 import { Separator } from "@/components/ui/Separator";
+import Select from "@/components/ui/Select";
+import { CURRENCIES, COUNTRIES } from "@/lib/constants";
 import {
   Building2,
   Save,
@@ -24,17 +26,22 @@ import {
   Coins,
   Loader2,
   Plus,
+  AlertCircle,
 } from "lucide-react";
 import businessService from "@/features/auth/services/businessService";
 import useAuthStore from "@/store/useAuthStore";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import CreateBusinessModal from "@/features/auth/components/CreateBusinessModal";
+import { hasPermission, PERMISSIONS } from "@/lib/rbac";
 
 const BusinessSettings = () => {
   const { businessId } = useParams();
   const navigate = useNavigate();
   const { activeBusiness, setAuth } = useAuthStore();
   const { logout } = useAuth();
+
+  const userRole = activeBusiness?.role;
+  const canManage = hasPermission(userRole, PERMISSIONS.MANAGE_BUSINESS);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -43,6 +50,7 @@ const BusinessSettings = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
+  const [initialData, setInitialData] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     logoUrl: "",
@@ -65,7 +73,7 @@ const BusinessSettings = () => {
         const response = await businessService.getBusinessById(businessId);
         const biz = response.data.business;
 
-        setFormData({
+        const data = {
           name: biz.name || "",
           logoUrl: biz.logoUrl || "",
           currency: biz.currency || "USD",
@@ -78,7 +86,10 @@ const BusinessSettings = () => {
           },
           phoneNumber: biz.phoneNumber || "",
           phoneCountry: biz.phoneCountry || "",
-        });
+        };
+
+        setFormData(data);
+        setInitialData(data);
         setError(null);
       } catch (err) {
         setError(err.message || "Failed to load business details");
@@ -91,6 +102,9 @@ const BusinessSettings = () => {
       fetchBusiness();
     }
   }, [businessId]);
+
+  const hasChanges =
+    initialData && JSON.stringify(formData) !== JSON.stringify(initialData);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -108,8 +122,26 @@ const BusinessSettings = () => {
     }
   };
 
+  const handleReset = () => {
+    if (initialData) {
+      setFormData(initialData);
+      setError(null);
+      setSuccess(null);
+    }
+  };
+
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setError("Business name is required");
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -119,6 +151,24 @@ const BusinessSettings = () => {
         businessId,
         formData,
       );
+      const updatedBiz = response.data.business;
+      const newData = {
+        name: updatedBiz.name || "",
+        logoUrl: updatedBiz.logoUrl || "",
+        currency: updatedBiz.currency || "USD",
+        location: {
+          street: updatedBiz.location?.street || "",
+          city: updatedBiz.location?.city || "",
+          state: updatedBiz.location?.state || "",
+          zip: updatedBiz.location?.zip || "",
+          country: updatedBiz.location?.country || "",
+        },
+        phoneNumber: updatedBiz.phoneNumber || "",
+        phoneCountry: updatedBiz.phoneCountry || "",
+      };
+
+      setInitialData(newData);
+      setFormData(newData);
       setSuccess("Business settings updated successfully");
 
       // Update local store if the updated business is the active one
@@ -135,7 +185,15 @@ const BusinessSettings = () => {
         });
       }
     } catch (err) {
-      setError(err.message || "Failed to update business settings");
+      const validationErrors = err.meta?.validationErrors;
+      if (validationErrors) {
+        const errorMsg = validationErrors
+          .map((e) => `${e.field}: ${e.message}`)
+          .join(", ");
+        setError(`Validation failed: ${errorMsg}`);
+      } else {
+        setError(err.message || "Failed to update business settings");
+      }
     } finally {
       setSaving(false);
     }
@@ -174,24 +232,35 @@ const BusinessSettings = () => {
   }
 
   const isOwner = activeBusiness?.role === "owner";
-  const canEdit = ["owner", "admin"].includes(activeBusiness?.role);
+  const canEdit = canManage;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
-        <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="gap-2"
-          variant="outline"
-        >
-          <Plus className="h-4 w-4" />
-          Create New Business
-        </Button>
-      </div>
+      {canManage && (
+        <div className="flex justify-end">
+          <Button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2"
+            variant="outline"
+          >
+            <Plus className="h-4 w-4" />
+            Create New Business
+          </Button>
+        </div>
+      )}
 
       {error && <Alert variant="destructive">{error}</Alert>}
       {success && (
         <Alert className="border-primary text-primary">{success}</Alert>
+      )}
+
+      {hasChanges && !error && !success && canManage && (
+        <Alert className="border-amber-500 bg-amber-50 text-amber-600">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4" />
+            You have unsaved changes. Please save or reset your changes.
+          </div>
+        </Alert>
       )}
 
       <form onSubmit={handleSubmit}>
@@ -232,18 +301,27 @@ const BusinessSettings = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="currency">Base Currency</Label>
-                  <div className="relative">
-                    <Coins className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="currency"
-                      name="currency"
-                      value={formData.currency}
-                      onChange={handleChange}
-                      disabled={!canEdit || saving}
-                      className="pl-10"
-                      placeholder="USD, BDT, etc."
-                    />
-                  </div>
+                  <Select
+                    id="currency"
+                    options={CURRENCIES.map((c) => ({
+                      value: c.code,
+                      label: `${c.code} (${c.symbol}) - ${c.name}`,
+                      symbol: c.symbol,
+                    }))}
+                    value={formData.currency}
+                    onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, currency: val }))
+                    }
+                    disabled={!canEdit || saving}
+                    renderOption={(opt) => (
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs w-6 text-muted-foreground">
+                          {opt.symbol}
+                        </span>
+                        <span>{opt.label}</span>
+                      </div>
+                    )}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
@@ -278,26 +356,52 @@ const BusinessSettings = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    value={formData.phoneNumber}
-                    onChange={handleChange}
+                  <Label htmlFor="phoneCountry">Country Code</Label>
+                  <Select
+                    id="phoneCountry"
+                    options={COUNTRIES.map((c) => ({
+                      value: c.code,
+                      label: `${c.flag} ${c.name} (${c.dialCode})`,
+                      dialCode: c.dialCode,
+                      flag: c.flag,
+                    }))}
+                    value={formData.phoneCountry}
+                    onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, phoneCountry: val }))
+                    }
                     disabled={!canEdit || saving}
-                    placeholder="+1 (555) 000-0000"
+                    renderOption={(opt) => (
+                      <div className="flex items-center gap-2">
+                        <span>{opt.flag}</span>
+                        <span>{opt.label}</span>
+                      </div>
+                    )}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phoneCountry">Phone Country (ISO)</Label>
-                  <Input
-                    id="phoneCountry"
-                    name="phoneCountry"
-                    value={formData.phoneCountry}
-                    onChange={handleChange}
-                    disabled={!canEdit || saving}
-                    placeholder="US, BD, etc."
-                  />
+                  <Label htmlFor="phoneNumber">Phone Number</Label>
+                  <div className="relative">
+                    {formData.phoneCountry && (
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-sm text-muted-foreground border-r pr-2 h-5">
+                        <span>
+                          {
+                            COUNTRIES.find(
+                              (c) => c.code === formData.phoneCountry,
+                            )?.dialCode
+                          }
+                        </span>
+                      </div>
+                    )}
+                    <Input
+                      id="phoneNumber"
+                      name="phoneNumber"
+                      value={formData.phoneNumber}
+                      onChange={handleChange}
+                      disabled={!canEdit || saving}
+                      className={formData.phoneCountry ? "pl-16" : ""}
+                      placeholder="000-000-0000"
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -408,16 +512,20 @@ const BusinessSettings = () => {
           )}
 
           {canEdit && (
-            <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-4 sticky bottom-0 bg-background/80 backdrop-blur-sm p-4 border-t z-10 -mx-4 md:mx-0 md:rounded-b-lg">
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(-1)}
-                disabled={saving}
+                onClick={handleReset}
+                disabled={saving || !hasChanges}
               >
-                Cancel
+                Reset Changes
               </Button>
-              <Button type="submit" disabled={saving} className="gap-2">
+              <Button
+                type="submit"
+                disabled={saving || !hasChanges}
+                className="gap-2"
+              >
                 {saving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

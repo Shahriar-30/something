@@ -2,6 +2,8 @@ import express from "express";
 import {
   register,
   login,
+  getMe,
+  changePassword,
   switchBusiness,
   refreshToken,
   logout,
@@ -21,6 +23,7 @@ import {
   passwordResetRequestSchema,
   passwordResetConfirmSchema,
   switchBusinessSchema,
+  changePasswordSchema,
 } from "../../../validators/authValidator.js";
 
 const router = express.Router();
@@ -29,6 +32,13 @@ router.post("/register", validateRequest(registerSchema), register);
 router.post("/login", validateRequest(loginSchema), login);
 router.post("/refresh", validateRequest(refreshTokenSchema), refreshToken);
 router.post("/verify-email", validateRequest(verifyEmailSchema), verifyEmail);
+router.get("/me", authenticate, getMe);
+router.post(
+  "/change-password",
+  authenticate,
+  validateRequest(changePasswordSchema),
+  changePassword
+);
 router.post(
   "/resend-verification",
   validateRequest(resendVerificationSchema),

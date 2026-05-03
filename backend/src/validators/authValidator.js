@@ -56,3 +56,12 @@ export const switchBusinessSchema = z.object({
     id: z.string().min(1, "Business ID is required"),
   }),
 });
+
+export const changePasswordSchema = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters"),
+  }),
+});

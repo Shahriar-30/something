@@ -5,7 +5,6 @@ import businessRoutes from "./businesses.js";
 import businessMembersRoutes from "./businessMembers.js";
 import contactsRoutes from "./contacts.js";
 import leadsRoutes from "./leads.js";
-import helloRoute from "./hello.js";
 
 const router = express.Router();
 
@@ -15,6 +14,5 @@ router.use("/businesses", businessRoutes);
 router.use("/business-members", businessMembersRoutes);
 router.use("/contacts", contactsRoutes);
 router.use("/leads", leadsRoutes);
-router.use("/hello", helloRoute);
 
 export default router;

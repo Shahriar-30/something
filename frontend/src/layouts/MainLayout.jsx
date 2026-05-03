@@ -11,7 +11,6 @@ import {
   CreditCard,
   LifeBuoy,
   BarChart3,
-  LogOut,
   ChevronDown,
   Building2,
 } from "lucide-react";
@@ -20,19 +19,17 @@ import { Avatar } from "@/components/ui/Avatar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import useAuthStore from "@/store/useAuthStore";
-import { useAuth } from "@/features/auth/hooks/useAuth";
 
 const navClass = ({ isActive }) =>
   cn(
     "flex items-center gap-3 px-4 py-2 rounded-md text-sm font-medium transition-all",
     isActive
       ? "bg-notion-light-gray text-primary border-l-2 border-primary rounded-l-none -ml-px"
-      : "text-notion-dark hover:bg-notion-light-gray"
+      : "text-notion-dark hover:bg-notion-light-gray",
   );
 
 export default function MainLayout() {
   const { user, activeBusiness, businesses } = useAuthStore();
-  const { logout } = useAuth();
   const { businessId } = useParams();
   const navigate = useNavigate();
   const [isBusinessMenuOpen, setIsBusinessMenuOpen] = useState(false);
@@ -79,7 +76,7 @@ export default function MainLayout() {
             <ChevronDown
               className={cn(
                 "w-4 h-4 text-muted-foreground transition-transform",
-                isBusinessMenuOpen && "rotate-180"
+                isBusinessMenuOpen && "rotate-180",
               )}
             />
           </button>
@@ -98,7 +95,7 @@ export default function MainLayout() {
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted transition-colors text-left",
                       biz.id === businessId &&
-                        "bg-primary/5 text-primary font-medium"
+                        "bg-primary/5 text-primary font-medium",
                     )}
                   >
                     <div
@@ -106,7 +103,7 @@ export default function MainLayout() {
                         "h-6 w-6 rounded-sm flex items-center justify-center text-[10px] font-bold",
                         biz.id === businessId
                           ? "bg-primary text-white"
-                          : "bg-muted text-muted-foreground"
+                          : "bg-muted text-muted-foreground",
                       )}
                     >
                       {biz.name[0]}
@@ -172,28 +169,8 @@ export default function MainLayout() {
           </NavLink>
         </nav>
 
-        <div className="p-4 border-t border-border bg-notion-bg/20 space-y-4">
+        <div className="p-4 border-t border-border bg-notion-bg/20">
           <ThemeToggle />
-          <div className="flex items-center gap-3 px-2 py-2">
-            <Avatar status="online" className="h-8 w-8">
-              {getInitials(user?.name)}
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-notion-black">
-                {user?.name || "User"}
-              </p>
-              <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">
-                {activeBusiness?.role || "Member"}
-              </p>
-            </div>
-            <button
-              onClick={logout}
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive transition-colors"
-              title="Logout"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
         </div>
       </aside>
 

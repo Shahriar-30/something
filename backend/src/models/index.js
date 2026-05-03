@@ -6,3 +6,4 @@ export { Otp } from "./Otp.js";
 export { ContactList } from "./ContactList.js";
 export { LeadRow } from "./LeadRow.js";
 export { LeadAssignmentLog } from "./LeadAssignmentLog.js";
+export { BusinessMemberAuditLog } from "./BusinessMemberAuditLog.js";

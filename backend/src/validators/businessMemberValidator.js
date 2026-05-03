@@ -9,3 +9,15 @@ export const removeBusinessMemberSchema = z.object({
     userId: objectIdSchema,
   }),
 });
+
+export const updateBusinessMemberRoleSchema = z.object({
+  params: z.object({
+    userId: objectIdSchema,
+  }),
+  body: z.object({
+    role: z.enum(["owner", "admin", "staff", "viewer"], {
+      required_error: "Role is required",
+      invalid_type_error: "Role must be owner, admin, staff, or viewer",
+    }),
+  }),
+});

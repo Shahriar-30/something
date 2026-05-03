@@ -55,6 +55,17 @@ const authService = {
   refresh: () => apiClient.post("/auth/refresh"),
 
   /**
+   * Get current authenticated user profile
+   */
+  getMe: () => apiClient.get("/auth/me"),
+
+  /**
+   * Change user password
+   * @param {Object} data - { currentPassword, newPassword }
+   */
+  changePassword: (data) => apiClient.post("/auth/change-password", data),
+
+  /**
    * Logout user and clear session
    */
   logout: () => apiClient.post("/auth/logout"),
