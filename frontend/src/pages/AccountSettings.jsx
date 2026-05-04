@@ -194,14 +194,13 @@ const AccountSettings = () => {
             </Button>
             <Button
               onClick={handlePasswordChange}
+              isLoading={loading}
               disabled={
-                loading ||
                 !passwordData.currentPassword ||
                 !passwordData.newPassword
               }
               className="gap-2"
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
               Update Password
             </Button>
           </>

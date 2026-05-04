@@ -497,14 +497,10 @@ const BusinessSettings = () => {
                   type="button"
                   variant="destructive"
                   onClick={handleDelete}
-                  disabled={deleting}
+                  isLoading={deleting}
                   className="gap-2"
                 >
-                  {deleting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
+                  <Trash2 className="h-4 w-4" />
                   Delete Business
                 </Button>
               </CardContent>
@@ -523,14 +519,11 @@ const BusinessSettings = () => {
               </Button>
               <Button
                 type="submit"
-                disabled={saving || !hasChanges}
+                isLoading={saving}
+                disabled={!hasChanges}
                 className="gap-2"
               >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
+                <Save className="h-4 w-4" />
                 Save Changes
               </Button>
             </div>

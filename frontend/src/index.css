@@ -131,6 +131,14 @@
     @apply font-semibold tracking-tight text-notion-black;
   }
 
+  button {
+    @apply cursor-pointer;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed pointer-events-none;
+  }
+
   /* Custom scrollbar - Notion style (minimal) */
   ::-webkit-scrollbar {
     width: 8px;

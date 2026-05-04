@@ -164,8 +164,8 @@ const Login = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Logging in..." : "Log in"}
+            <Button type="submit" className="w-full" isLoading={loading}>
+              Log in
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Don't have an account?{" "}

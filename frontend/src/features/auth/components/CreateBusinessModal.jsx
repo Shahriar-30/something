@@ -77,12 +77,8 @@ const CreateBusinessModal = ({ isOpen, onClose }) => {
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading} className="gap-2">
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Building2 className="h-4 w-4" />
-            )}
+          <Button onClick={handleSubmit} isLoading={loading} className="gap-2">
+            <Building2 className="h-4 w-4" />
             Create Business
           </Button>
         </>

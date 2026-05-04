@@ -302,12 +302,8 @@ const AcceptInvitation = () => {
                 )}
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={submitting}>
-                  {submitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                  )}
+                <Button type="submit" className="w-full" isLoading={submitting}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
                   {invitation.userExists
                     ? "Accept Invitation"
                     : "Create Account & Accept"}

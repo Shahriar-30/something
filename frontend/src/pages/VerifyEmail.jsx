@@ -182,9 +182,10 @@ const VerifyEmail = () => {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || otp.join("").length < 6}
+              isLoading={loading}
+              disabled={otp.join("").length < 6}
             >
-              {loading ? "Verifying..." : "Verify email"}
+              Verify email
             </Button>
             <div className="text-center text-sm">
               Didn't receive the code?{" "}

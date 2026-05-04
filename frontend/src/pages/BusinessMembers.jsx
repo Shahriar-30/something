@@ -458,12 +458,8 @@ const BusinessMembers = () => {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Mail className="h-4 w-4 mr-2" />
-              )}
+            <Button type="submit" isLoading={submitting}>
+              <Mail className="h-4 w-4 mr-2" />
               Send Invitation
             </Button>
           </div>
@@ -499,12 +495,12 @@ const BusinessMembers = () => {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateRole} disabled={submitting}>
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
+            <Button
+              onClick={handleUpdateRole}
+              isLoading={submitting}
+              disabled={newRole === selectedMember?.role}
+            >
+              <Save className="h-4 w-4 mr-2" />
               Update Role
             </Button>
           </div>
@@ -536,13 +532,9 @@ const BusinessMembers = () => {
             <Button
               variant="destructive"
               onClick={handleRemoveMember}
-              disabled={submitting}
+              isLoading={submitting}
             >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Trash2 className="h-4 w-4 mr-2" />
-              )}
+              <Trash2 className="h-4 w-4 mr-2" />
               Remove Member
             </Button>
           </div>

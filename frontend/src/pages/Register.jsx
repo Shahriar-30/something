@@ -184,8 +184,8 @@ const Register = () => {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create account"}
+            <Button type="submit" className="w-full" isLoading={loading}>
+              Create account
             </Button>
             <div className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
