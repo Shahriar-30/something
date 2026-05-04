@@ -8,10 +8,7 @@ import {
   updateContact,
   updateContactFields,
 } from "../../../controllers/contactController.js";
-import {
-  createLead,
-  getLeads,
-} from "../../../controllers/leadController.js";
+import { createLead, getLeads } from "../../../controllers/leadController.js";
 import {
   importGoogleSheet,
   importLeadsFromCsv,
@@ -27,6 +24,7 @@ import {
   createContactSchema,
   updateContactFieldsSchema,
   updateContactSchema,
+  deleteContactSchema,
 } from "../../../validators/contactValidator.js";
 import {
   createLeadSchema,
@@ -38,7 +36,13 @@ import {
 
 const router = express.Router();
 
-router.post("/", authenticate, businessScope, validateRequest(createContactSchema), createContact);
+router.post(
+  "/",
+  authenticate,
+  businessScope,
+  validateRequest(createContactSchema),
+  createContact
+);
 router.get("/", authenticate, businessScope, getContacts);
 router.get(
   "/:id",
@@ -65,7 +69,7 @@ router.delete(
   "/:id",
   authenticate,
   businessScope,
-  validateRequest(contactIdParamsSchema),
+  validateRequest(deleteContactSchema),
   deleteContact
 );
 router.get(

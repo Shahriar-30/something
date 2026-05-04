@@ -1,4 +1,4 @@
-import { BusinessMember, ContactList } from "../models/index.js";
+import { BusinessMember, ContactList, User } from "../models/index.js";
 import {
   sendSuccess,
   sendError,
@@ -54,10 +54,18 @@ const resolveAssignmentConfig = async (businessId, assignmentConfig = {}) => {
 export const createContact = asyncHandler(async (req, res) => {
   const { activeRole, userId } = req.user;
   const { businessId } = req;
-  const { title, description, fieldSchema = [], assignmentConfig } = req.validated.body;
+  const {
+    title,
+    description,
+    fieldSchema = [],
+    assignmentConfig,
+  } = req.validated.body;
 
   if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can create contact lists");
+    return sendForbidden(
+      res,
+      "Only owner/admin/staff can create contact lists"
+    );
   }
 
   const normalizedFieldSchema = sanitizeFieldSchema(fieldSchema);
@@ -97,9 +105,13 @@ export const getContacts = asyncHandler(async (req, res) => {
   const contacts = await ContactList.find({
     businessId,
     isDeleted: false,
-  }).sort({ updatedAt: -1 });
+  })
+    .populate("createdBy", "name email")
+    .sort({ updatedAt: -1 });
 
-  return sendSuccess(res, "Contact lists retrieved successfully", { contacts });
+  return sendSuccess(res, "Contact lists retrieved successfully", {
+    contactLists: contacts,
+  });
 });
 
 export const getContactById = asyncHandler(async (req, res) => {
@@ -111,12 +123,17 @@ export const getContactById = asyncHandler(async (req, res) => {
     return sendForbidden(res, "You do not have permission to view contacts");
   }
 
-  const contact = await ContactList.findActiveById(id, businessId);
+  const contact = await ContactList.findActiveById(id, businessId).populate(
+    "createdBy",
+    "name email"
+  );
   if (!contact) {
     return sendNotFound(res, "Contact list");
   }
 
-  return sendSuccess(res, "Contact list retrieved successfully", { contact });
+  return sendSuccess(res, "Contact list retrieved successfully", {
+    contactList: contact,
+  });
 });
 
 export const updateContact = asyncHandler(async (req, res) => {
@@ -126,7 +143,10 @@ export const updateContact = asyncHandler(async (req, res) => {
   const { title, description, assignmentConfig } = req.validated.body;
 
   if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can update contact lists");
+    return sendForbidden(
+      res,
+      "Only owner/admin/staff can update contact lists"
+    );
   }
 
   const contact = await ContactList.findActiveById(id, businessId);
@@ -195,9 +215,17 @@ export const deleteContact = asyncHandler(async (req, res) => {
   const { activeRole, userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
+  const { password } = req.validated.body;
 
   if (!canDeleteByRole(activeRole)) {
     return sendForbidden(res, "Only owner/admin can delete contact lists");
+  }
+
+  // Verify user password
+  const user = await User.findById(userId);
+  const isPasswordValid = await user.comparePassword(password);
+  if (!isPasswordValid) {
+    return sendError(res, "Invalid password", 400);
   }
 
   const contact = await ContactList.findActiveById(id, businessId);
@@ -250,5 +278,7 @@ export const getContactAssignableMembers = asyncHandler(async (req, res) => {
       .includes(member.userId?._id?.toString()),
   }));
 
-  return sendSuccess(res, "Assignable members retrieved successfully", { members });
+  return sendSuccess(res, "Assignable members retrieved successfully", {
+    members,
+  });
 });

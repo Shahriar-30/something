@@ -72,7 +72,11 @@ function App() {
           <Route path="/:businessId" element={<BusinessContextSync />}>
             <Route element={<MainLayout />}>
               <Route index element={<Home />} />
-              <Route path="contacts" element={<Contacts />} />
+              <Route path="contacts">
+                <Route index element={<Contacts />} />
+                <Route path=":listId" element={<Contacts />} />
+                <Route path=":listId/leads/:leadId" element={<Contacts />} />
+              </Route>
               <Route path="deals" element={<ComingSoon />} />
               <Route path="activities" element={<ComingSoon />} />
               <Route path="billing" element={<ComingSoon />} />

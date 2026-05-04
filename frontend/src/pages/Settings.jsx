@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { User, Building2, Users, CreditCard, LifeBuoy } from "lucide-react";
 import useAuthStore from "@/store/useAuthStore";
 import { hasPermission, PERMISSIONS } from "@/lib/rbac";
+import { PageContainer, PageHeader, PageContent } from "@/components/layout";
 
 const Settings = () => {
   const { businessId } = useParams();
@@ -12,24 +13,20 @@ const Settings = () => {
 
   const getTabClass = (isActive) =>
     cn(
-      "data-[state=active]:bg-notion-light-gray data-[state=active]:text-primary data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary rounded-none px-4 py-2 text-sm font-medium transition-all gap-2 flex items-center",
+      "data-[state=active]:bg-notion-light-gray data-[state=active]:text-primary data-[state=active]:shadow-none border-b-2 border-transparent data-[state=active]:border-primary rounded-none px-4 py-2 text-sm font-medium transition-all gap-2 flex items-center whitespace-nowrap",
       isActive && "border-primary text-primary bg-notion-light-gray",
     );
 
   return (
-    <div className="p-8 lg:p-12 max-w-7xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-notion-black">
-          Settings
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Manage your account and business preferences.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Settings"
+        description="Manage your account and business preferences."
+      />
 
-      <div className="space-y-6">
-        <div className="border-b border-border pb-1">
-          <nav className="flex flex-wrap justify-start gap-2">
+      <PageContent className="space-y-6">
+        <div className="border-b border-border overflow-x-auto scrollbar-hide">
+          <nav className="flex justify-start gap-1">
             <NavLink
               to={`/${businessId}/settings/account`}
               className={({ isActive }) => getTabClass(isActive)}
@@ -72,11 +69,11 @@ const Settings = () => {
           </nav>
         </div>
 
-        <div className="mt-0">
+        <div className="pt-2">
           <Outlet />
         </div>
-      </div>
-    </div>
+      </PageContent>
+    </PageContainer>
   );
 };
 

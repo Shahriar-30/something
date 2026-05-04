@@ -10,7 +10,15 @@ const fieldItemSchema = z.object({
     .min(1, "Field key is required")
     .regex(/^[a-z][a-z0-9_]*$/, "Field key must be snake_case"),
   label: z.string().min(1, "Field label is required"),
-  type: z.enum(["text", "email", "phone", "address", "number", "date", "select"]),
+  type: z.enum([
+    "text",
+    "email",
+    "phone",
+    "address",
+    "number",
+    "date",
+    "select",
+  ]),
   required: z.boolean().optional(),
   unique: z.boolean().optional(),
   options: z.array(z.string()).optional(),
@@ -48,11 +56,22 @@ export const updateContactSchema = z.object({
   }),
 });
 
+export const deleteContactSchema = z.object({
+  params: z.object({
+    id: objectIdSchema,
+  }),
+  body: z.object({
+    password: z.string().min(1, "Password is required"),
+  }),
+});
+
 export const updateContactFieldsSchema = z.object({
   params: z.object({
     id: objectIdSchema,
   }),
   body: z.object({
-    fieldSchema: z.array(fieldItemSchema).min(1, "At least one field is required"),
+    fieldSchema: z
+      .array(fieldItemSchema)
+      .min(1, "At least one field is required"),
   }),
 });
