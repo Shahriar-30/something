@@ -40,6 +40,9 @@ export default function ContactsList() {
   });
   const [createError, setCreateError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const descriptionLimit = 200;
+  const isDescriptionTooLong =
+    newContactData.description?.length > descriptionLimit;
 
   // Menu and action states
   const [menuOpen, setMenuOpen] = useState(null);
@@ -56,6 +59,7 @@ export default function ContactsList() {
   );
 
   const canManageContacts = ["owner", "admin"].includes(activeBusiness?.role);
+  const showContactMeta = canManageContacts;
 
   const getLeadCount = (listId) => {
     // TODO: Implement lead count fetching from API
@@ -65,6 +69,13 @@ export default function ContactsList() {
   const handleCreateContact = async () => {
     if (!newContactData.title.trim()) {
       setCreateError("Title is required");
+      return;
+    }
+
+    if (isDescriptionTooLong) {
+      setCreateError(
+        `Description must be ${descriptionLimit} characters or fewer`,
+      );
       return;
     }
 
@@ -104,9 +115,8 @@ export default function ContactsList() {
       await contactService.deleteContactList(listToDelete, deletePassword);
       setIsDeleteModalOpen(false);
       setDeletePassword("");
-      setListToDelete(null);
       setMenuOpen(null);
-      refreshLists();
+      setListToDelete(null);
     } catch (err) {
       setDeleteError(err?.message || "Unable to delete contact list.");
     } finally {
@@ -131,6 +141,12 @@ export default function ContactsList() {
     }
 
     setCreateError("");
+    if (isDescriptionTooLong) {
+      setCreateError(
+        `Description must be ${descriptionLimit} characters or fewer`,
+      );
+      return;
+    }
     setIsUpdating(true);
 
     try {
@@ -243,19 +259,21 @@ export default function ContactsList() {
                 Leads without an owner yet
               </div>
             </Card>
-            <Card className="border-border bg-notion-bg/50 p-5">
-              <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                Assignment
-              </div>
-              <div className="text-3xl font-bold text-notion-black">
-                {activeList?.assignmentConfig?.mode || "queue"}
-              </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {activeList?.assignmentConfig?.strategy
-                  ? `Strategy: ${activeList.assignmentConfig.strategy}`
-                  : "Automatic assignment"}
-              </div>
-            </Card>
+            {showContactMeta && (
+              <Card className="border-border bg-notion-bg/50 p-5">
+                <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">
+                  Assignment
+                </div>
+                <div className="text-3xl font-bold text-notion-black">
+                  {activeList?.assignmentConfig?.mode || "queue"}
+                </div>
+                <div className="mt-2 text-sm text-muted-foreground">
+                  {activeList?.assignmentConfig?.strategy
+                    ? `Strategy: ${activeList.assignmentConfig.strategy}`
+                    : "Automatic assignment"}
+                </div>
+              </Card>
+            )}
           </div>
 
           <Card className="border-border p-5 mb-6 bg-notion-bg/50">
@@ -275,12 +293,14 @@ export default function ContactsList() {
                   ))}
                 </div>
               </div>
-              <div className="text-sm text-muted-foreground">
-                Created by {activeList?.createdBy?.name || "Unknown"} on{" "}
-                {activeList?.createdAt
-                  ? new Date(activeList.createdAt).toLocaleDateString()
-                  : "—"}
-              </div>
+              {showContactMeta ? (
+                <div className="text-sm text-muted-foreground">
+                  Created by {activeList?.createdBy?.name || "Unknown"} on{" "}
+                  {activeList?.createdAt
+                    ? new Date(activeList.createdAt).toLocaleDateString()
+                    : "—"}
+                </div>
+              ) : null}
             </div>
           </Card>
 
@@ -396,8 +416,8 @@ export default function ContactsList() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setListToDelete(list._id);
-                                  setIsDeleteModalOpen(true);
                                   setMenuOpen(null);
+                                  setIsDeleteModalOpen(true);
                                 }}
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -415,17 +435,21 @@ export default function ContactsList() {
                   <div className="space-y-3 pt-4 border-t border-border mt-auto">
                     <div className="flex items-center justify-between text-[11px] font-medium text-muted-foreground">
                       <span>{getLeadCount(list._id)} leads</span>
-                      <Badge
-                        variant="secondary"
-                        className="text-[10px] uppercase font-bold tracking-wider"
-                      >
-                        {list.assignmentConfig?.mode || "queue"}
-                      </Badge>
+                      {showContactMeta && (
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] uppercase font-bold tracking-wider"
+                        >
+                          {list.assignmentConfig?.mode || "queue"}
+                        </Badge>
+                      )}
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Created by {list.createdBy?.name || "Unknown"} •{" "}
-                      {new Date(list.createdAt).toLocaleDateString()}
-                    </div>
+                    {showContactMeta ? (
+                      <div className="text-[11px] text-muted-foreground">
+                        Created by {list.createdBy?.name || "Unknown"} •{" "}
+                        {new Date(list.createdAt).toLocaleDateString()}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </Card>
@@ -453,6 +477,7 @@ export default function ContactsList() {
                 isCreating ||
                 isUpdating ||
                 !newContactData.title.trim() ||
+                isDescriptionTooLong ||
                 (editingList &&
                   newContactData.title.trim() === editingList.title &&
                   newContactData.description === editingList.description)
@@ -493,6 +518,7 @@ export default function ContactsList() {
             </label>
             <textarea
               value={newContactData.description}
+              maxLength={descriptionLimit}
               onChange={(e) =>
                 setNewContactData((prev) => ({
                   ...prev,
@@ -502,6 +528,18 @@ export default function ContactsList() {
               className="min-h-30 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20"
               placeholder="Optional description for this contact list"
             />
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Optional, up to {descriptionLimit} characters.</span>
+              <span
+                className={
+                  isDescriptionTooLong
+                    ? "text-rose-600"
+                    : "text-muted-foreground"
+                }
+              >
+                {newContactData.description.length}/{descriptionLimit}
+              </span>
+            </div>
           </div>
           {createError ? (
             <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -519,7 +557,7 @@ export default function ContactsList() {
           <>
             <Button
               variant="outline"
-              onClick={handleDeleteModalClose}
+              onClick={() => setIsDeleteModalOpen(false)}
               disabled={isDeleting}
             >
               Cancel

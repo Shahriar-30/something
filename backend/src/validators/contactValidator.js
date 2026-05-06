@@ -33,7 +33,11 @@ const assignmentConfigSchema = z.object({
 export const createContactSchema = z.object({
   body: z.object({
     title: z.string().min(1, "Title is required"),
-    description: z.string().optional().nullable(),
+    description: z
+      .string()
+      .max(200, "Description must be 200 characters or fewer")
+      .optional()
+      .nullable(),
     fieldSchema: z.array(fieldItemSchema).optional(),
     assignmentConfig: assignmentConfigSchema.optional(),
   }),
@@ -51,7 +55,11 @@ export const updateContactSchema = z.object({
   }),
   body: z.object({
     title: z.string().min(1).optional(),
-    description: z.string().optional().nullable(),
+    description: z
+      .string()
+      .max(200, "Description must be 200 characters or fewer")
+      .optional()
+      .nullable(),
     assignmentConfig: assignmentConfigSchema.optional(),
   }),
 });

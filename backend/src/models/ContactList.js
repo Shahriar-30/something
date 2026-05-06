@@ -80,6 +80,7 @@ const contactListSchema = new Schema(
       type: String,
       default: null,
       trim: true,
+      maxlength: 200,
     },
     createdBy: {
       type: Schema.Types.ObjectId,
