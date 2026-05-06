@@ -14,8 +14,6 @@ const sanitizeFieldSchema = (fieldSchema = []) => {
     key: item.key.toLowerCase().trim(),
     label: item.label.trim(),
     type: item.type,
-    required: Boolean(item.required),
-    unique: Boolean(item.unique),
     options: item.options || [],
   }));
 };

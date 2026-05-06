@@ -10,17 +10,7 @@ const fieldItemSchema = z.object({
     .min(1, "Field key is required")
     .regex(/^[a-z][a-z0-9_]*$/, "Field key must be snake_case"),
   label: z.string().min(1, "Field label is required"),
-  type: z.enum([
-    "text",
-    "email",
-    "phone",
-    "address",
-    "number",
-    "date",
-    "select",
-  ]),
-  required: z.boolean().optional(),
-  unique: z.boolean().optional(),
+  type: z.enum(["text", "email", "number", "select"]),
   options: z.array(z.string()).optional(),
 });
 

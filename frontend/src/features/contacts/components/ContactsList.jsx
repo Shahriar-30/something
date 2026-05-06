@@ -20,6 +20,7 @@ import useAuthStore from "@/store/useAuthStore";
 import { useContactLists, useContactList } from "../hooks/useContacts";
 import contactService from "../services/contactService";
 import { LeadsTable } from "./LeadsTable";
+import SchemaBuilder from "./SchemaBuilder";
 
 export default function ContactsList() {
   const { businessId, listId } = useParams();
@@ -37,6 +38,7 @@ export default function ContactsList() {
   const [newContactData, setNewContactData] = useState({
     title: "",
     description: "",
+    fieldSchema: [],
   });
   const [createError, setCreateError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -79,6 +81,11 @@ export default function ContactsList() {
       return;
     }
 
+    if (newContactData.fieldSchema.length === 0) {
+      setCreateError("Please add at least one lead field");
+      return;
+    }
+
     setCreateError("");
     setIsCreating(true);
 
@@ -86,13 +93,14 @@ export default function ContactsList() {
       const response = await contactService.createContactList({
         title: newContactData.title.trim(),
         description: newContactData.description.trim() || null,
+        fieldSchema: newContactData.fieldSchema,
       });
 
       const created = response.data?.contact;
       if (created?._id) {
         await refreshLists();
         setIsCreateModalOpen(false);
-        setNewContactData({ title: "", description: "" });
+        setNewContactData({ title: "", description: "", fieldSchema: [] });
         navigate(`/${businessId}/contacts/${created._id}`);
       }
     } catch (err) {
@@ -172,7 +180,7 @@ export default function ContactsList() {
 
   const handleModalClose = () => {
     setIsCreateModalOpen(false);
-    setNewContactData({ title: "", description: "" });
+    setNewContactData({ title: "", description: "", fieldSchema: [] });
     setCreateError("");
     setEditingList(null);
   };
@@ -470,6 +478,7 @@ export default function ContactsList() {
                 isUpdating ||
                 !newContactData.title.trim() ||
                 isDescriptionTooLong ||
+                (!editingList && newContactData.fieldSchema.length === 0) ||
                 (editingList &&
                   newContactData.title.trim() === editingList.title &&
                   newContactData.description === editingList.description)
@@ -533,6 +542,19 @@ export default function ContactsList() {
               </span>
             </div>
           </div>
+
+          <div>
+            <SchemaBuilder
+              schema={newContactData.fieldSchema}
+              onChange={(fieldSchema) =>
+                setNewContactData((prev) => ({
+                  ...prev,
+                  fieldSchema,
+                }))
+              }
+            />
+          </div>
+
           {createError ? (
             <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
               {createError}

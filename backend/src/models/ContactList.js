@@ -18,16 +18,8 @@ const fieldSchemaItemSchema = new Schema(
     type: {
       type: String,
       required: true,
-      enum: ["text", "email", "phone", "address", "number", "date", "select"],
+      enum: ["text", "email", "number", "select"],
       default: "text",
-    },
-    required: {
-      type: Boolean,
-      default: false,
-    },
-    unique: {
-      type: Boolean,
-      default: false,
     },
     options: {
       type: [String],
