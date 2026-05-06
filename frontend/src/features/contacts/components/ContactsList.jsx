@@ -209,18 +209,6 @@ export default function ContactsList() {
           description={
             activeList?.description || "Manage your leads and contacts"
           }
-          actions={
-            <>
-              <Button variant="outline" size="sm">
-                <Filter className="h-4 w-4 mr-2" />
-                Filter
-              </Button>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Lead
-              </Button>
-            </>
-          }
         >
           <div className="flex items-center gap-2 mb-2 sm:mb-0 sm:absolute sm:-left-12 sm:top-1.5">
             <Button
@@ -304,7 +292,11 @@ export default function ContactsList() {
             </div>
           </Card>
 
-          <LeadsTable listId={listId} schema={activeList?.fieldSchema || []} />
+          <LeadsTable
+            listId={listId}
+            schema={activeList?.fieldSchema || []}
+            showActions={true}
+          />
         </PageContent>
       </PageContainer>
     );

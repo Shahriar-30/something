@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { useLeads } from "../hooks/useLeads";
 import { Avatar } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 
 const statusColors = {
@@ -21,7 +21,7 @@ const statusColors = {
   lost: "bg-rose-100 text-rose-700 border-rose-200",
 };
 
-export function LeadsTable({ listId, schema = [] }) {
+export function LeadsTable({ listId, schema = [], showActions = false }) {
   const { leads, loading, params, updateParams, pagination } = useLeads(listId);
 
   const totalLeads = leads.length;
@@ -88,7 +88,7 @@ export function LeadsTable({ listId, schema = [] }) {
       </div>
 
       {/* Table Toolbar */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -98,6 +98,18 @@ export function LeadsTable({ listId, schema = [] }) {
             onKeyDown={handleSearch}
           />
         </div>
+        {showActions && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
+            </Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Lead
+            </Button>
+          </div>
+        )}
       </div>
 
       <Card className="border-border overflow-hidden">
