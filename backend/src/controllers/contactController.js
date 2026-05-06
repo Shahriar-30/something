@@ -7,12 +7,7 @@ import {
 } from "../utils/response/index.js";
 import { asyncHandler } from "../utils/response/helpers.js";
 import { logger } from "../config/logger.js";
-import {
-  canDeleteByRole,
-  canMutateByRole,
-  canViewByRole,
-  getActiveStaffPool,
-} from "../services/leadService.js";
+import { getActiveStaffPool } from "../services/leadService.js";
 
 const sanitizeFieldSchema = (fieldSchema = []) => {
   return fieldSchema.map((item) => ({
@@ -52,7 +47,7 @@ const resolveAssignmentConfig = async (businessId, assignmentConfig = {}) => {
 };
 
 export const createContact = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const {
     title,
@@ -60,13 +55,6 @@ export const createContact = asyncHandler(async (req, res) => {
     fieldSchema = [],
     assignmentConfig,
   } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(
-      res,
-      "Only owner/admin/staff can create contact lists"
-    );
-  }
 
   const normalizedFieldSchema = sanitizeFieldSchema(fieldSchema);
   validateUniqueFieldKeys(normalizedFieldSchema);
@@ -95,12 +83,7 @@ export const createContact = asyncHandler(async (req, res) => {
 });
 
 export const getContacts = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
-
-  if (!canViewByRole(activeRole)) {
-    return sendForbidden(res, "You do not have permission to view contacts");
-  }
 
   const contacts = await ContactList.find({
     businessId,
@@ -115,13 +98,8 @@ export const getContacts = asyncHandler(async (req, res) => {
 });
 
 export const getContactById = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
-
-  if (!canViewByRole(activeRole)) {
-    return sendForbidden(res, "You do not have permission to view contacts");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId).populate(
     "createdBy",
@@ -137,17 +115,10 @@ export const getContactById = asyncHandler(async (req, res) => {
 });
 
 export const updateContact = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { title, description, assignmentConfig } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(
-      res,
-      "Only owner/admin/staff can update contact lists"
-    );
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -183,14 +154,10 @@ export const updateContact = asyncHandler(async (req, res) => {
 });
 
 export const updateContactFields = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { fieldSchema } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can update fields");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -212,14 +179,10 @@ export const updateContactFields = asyncHandler(async (req, res) => {
 });
 
 export const deleteContact = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { password } = req.validated.body;
-
-  if (!canDeleteByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin can delete contact lists");
-  }
 
   // Verify user password
   const user = await User.findById(userId);
@@ -248,13 +211,8 @@ export const deleteContact = asyncHandler(async (req, res) => {
 });
 
 export const getContactAssignableMembers = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
-
-  if (!canViewByRole(activeRole)) {
-    return sendForbidden(res, "You do not have permission to view members");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {

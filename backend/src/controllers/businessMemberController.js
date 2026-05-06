@@ -13,8 +13,6 @@ import {
 import { asyncHandler } from "../utils/response/helpers.js";
 import { logger } from "../config/logger.js";
 
-const canManageMembers = (role) => ["owner", "admin"].includes(role);
-
 const resolveFallbackBusinessId = async (userId, currentBusinessId) => {
   const memberships = await BusinessMember.findActiveExcludingBusinessForUser(
     userId,
@@ -39,10 +37,6 @@ export const listBusinessMembers = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
-
-  if (!canManageMembers(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can view members");
-  }
 
   const query = {
     businessId,
@@ -88,10 +82,6 @@ export const removeBusinessMember = asyncHandler(async (req, res) => {
   const { userId: targetUserId } = req.validated.params;
   const { userId: actorUserId, activeRole } = req.user;
   const { businessId } = req;
-
-  if (!canManageMembers(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can remove members");
-  }
 
   if (targetUserId === actorUserId) {
     return sendError(res, "You cannot remove yourself from this business", 400);
@@ -173,10 +163,6 @@ export const updateBusinessMemberRole = asyncHandler(async (req, res) => {
   const { role: newRole } = req.validated.body;
   const { userId: actorUserId, activeRole } = req.user;
   const { businessId } = req;
-
-  if (!canManageMembers(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can update roles");
-  }
 
   const actorMembership = await BusinessMember.findOne({
     businessId,

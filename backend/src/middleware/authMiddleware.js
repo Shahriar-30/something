@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import { User, Business, BusinessMember } from "../models/index.js";
-import { sendUnauthorized } from "../utils/response/index.js";
+import { sendUnauthorized, sendForbidden } from "../utils/response/index.js";
 import { logger } from "../config/logger.js";
 import { env } from "../config/env.js";
 
@@ -106,7 +106,7 @@ export const requireRole = (...allowedRoles) => {
     const { activeRole } = req.user;
 
     if (!allowedRoles.includes(activeRole)) {
-      return sendUnauthorized(
+      return sendForbidden(
         res,
         `Access denied. Required role: ${allowedRoles.join(" or ")}`
       );
@@ -147,7 +147,7 @@ export const requirePermission = (permission) => {
     const userPermissions = rolePermissions[activeRole] || [];
 
     if (!userPermissions.includes(permission)) {
-      return sendUnauthorized(
+      return sendForbidden(
         res,
         `Access denied. Permission required: ${permission}`
       );
@@ -179,7 +179,9 @@ export const optionalAuth = async (req, res, next) => {
           userId: decoded.userId,
           status: "active",
         });
-        const business = await Business.findActiveById(decoded.activeBusinessId);
+        const business = await Business.findActiveById(
+          decoded.activeBusinessId
+        );
 
         if (
           user &&

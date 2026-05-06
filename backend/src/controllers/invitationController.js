@@ -20,24 +20,12 @@ import { emailService } from "../services/emailService.js";
 const BASE_URL = process.env.BASE_URL || "http://localhost:8080";
 
 /**
- * Check if user has permission to manage invitations for a business
- */
-const canManageInvitations = (userRole) => {
-  return ["owner", "admin"].includes(userRole);
-};
-
-/**
  * Send invitation to join business
  */
 export const sendInvitation = asyncHandler(async (req, res) => {
   const { email, role } = req.validated.body;
   const { activeBusinessId, activeRole, userId } = req.user;
   const normalizedEmail = email.toLowerCase().trim();
-
-  // Check permissions
-  if (!canManageInvitations(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can send invitations");
-  }
 
   // Validate role
   const validRoles = ["owner", "admin", "staff", "viewer"];
@@ -339,12 +327,7 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
  * Get business invitations (for owners/admins)
  */
 export const getInvitations = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
-
-  if (!canManageInvitations(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can view invitations");
-  }
 
   const invitations = await Invitation.find({
     businessId,
@@ -373,12 +356,8 @@ export const getInvitations = asyncHandler(async (req, res) => {
  */
 export const expireInvitation = asyncHandler(async (req, res) => {
   const { id } = req.validated.params;
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
-
-  if (!canManageInvitations(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can expire invitations");
-  }
 
   const invitation = await Invitation.findOne({
     _id: id,
@@ -409,12 +388,8 @@ export const expireInvitation = asyncHandler(async (req, res) => {
  */
 export const resendInvitation = asyncHandler(async (req, res) => {
   const { id } = req.validated.params;
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
-
-  if (!canManageInvitations(activeRole)) {
-    return sendForbidden(res, "Only owners and admins can resend invitations");
-  }
 
   const invitation = await Invitation.findOne({
     _id: id,

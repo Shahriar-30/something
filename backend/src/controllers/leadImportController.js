@@ -7,7 +7,6 @@ import {
 } from "../utils/response/index.js";
 import { asyncHandler } from "../utils/response/helpers.js";
 import { createLeadCore } from "./leadController.js";
-import { canMutateByRole } from "../services/leadService.js";
 
 const parseCsv = (csvText) => {
   const lines = csvText
@@ -77,14 +76,10 @@ const ingestRows = async ({
 };
 
 export const importLeadsFromCsv = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { csv } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can import leads");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -136,14 +131,10 @@ export const importLeadsFromWebhook = asyncHandler(async (req, res) => {
 });
 
 export const importGoogleSheet = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { sheetUrl, rows = [] } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can import leads");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -166,14 +157,10 @@ export const importGoogleSheet = asyncHandler(async (req, res) => {
 });
 
 export const syncGoogleSheet = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const { rows } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can sync leads");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {

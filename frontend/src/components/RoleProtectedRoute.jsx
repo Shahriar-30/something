@@ -4,15 +4,16 @@ import { hasPermission } from "../lib/rbac";
 
 /**
  * Route protection based on user roles.
- * Redirects to the business dashboard if the user doesn't have required permissions.
- * 
+ * This is UX-only and redirects unauthorized users in the browser.
+ * Backend authorization must still enforce all role and permission checks.
+ *
  * @param {Object} props
  * @param {Array<string>} props.allowedRoles - List of roles that are allowed to access this route
  */
 const RoleProtectedRoute = ({ allowedRoles }) => {
   const { activeBusiness } = useAuthStore();
   const { businessId } = useParams();
-  
+
   const userRole = activeBusiness?.role;
 
   if (!hasPermission(userRole, allowedRoles)) {

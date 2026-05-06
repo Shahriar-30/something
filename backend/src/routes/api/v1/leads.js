@@ -8,6 +8,7 @@ import { importLeadsFromWebhook } from "../../../controllers/leadImportControlle
 import {
   authenticate,
   businessScope,
+  requireRole,
 } from "../../../middleware/authMiddleware.js";
 import { validateRequest } from "../../../middleware/validateRequest.js";
 import {
@@ -16,13 +17,17 @@ import {
   leadIdParamsSchema,
   updateLeadSchema,
 } from "../../../validators/leadValidator.js";
+import { ROLE_GROUPS } from "../../../utils/rbac.js";
 
 const router = express.Router();
+const LEAD_MUTATE_ROLES = ROLE_GROUPS.LEAD_MUTATE;
+const LEAD_DELETE_ROLES = ROLE_GROUPS.LEAD_DELETE;
 
 router.patch(
   "/:leadId",
   authenticate,
   businessScope,
+  requireRole(...LEAD_MUTATE_ROLES),
   validateRequest(updateLeadSchema),
   updateLead
 );
@@ -30,6 +35,7 @@ router.delete(
   "/:leadId",
   authenticate,
   businessScope,
+  requireRole(...LEAD_DELETE_ROLES),
   validateRequest(leadIdParamsSchema),
   deleteLead
 );
@@ -37,6 +43,7 @@ router.post(
   "/:leadId/assign",
   authenticate,
   businessScope,
+  requireRole(...LEAD_MUTATE_ROLES),
   validateRequest(assignLeadSchema),
   assignLead
 );

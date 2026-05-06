@@ -14,9 +14,6 @@ import { asyncHandler } from "../utils/response/helpers.js";
 import { logger } from "../config/logger.js";
 import {
   buildDedupeHash,
-  canDeleteByRole,
-  canMutateByRole,
-  canViewByRole,
   extractNormalized,
   getActiveStaffPool,
   normalizeLeadValues,
@@ -85,14 +82,10 @@ const createLeadCore = async ({
 };
 
 export const createLead = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const payload = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can create leads");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -119,7 +112,6 @@ export const createLead = asyncHandler(async (req, res) => {
 });
 
 export const getLeads = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
   const {
@@ -132,10 +124,6 @@ export const getLeads = asyncHandler(async (req, res) => {
     sortBy = "createdAt",
     sortOrder = "desc",
   } = req.validated.query;
-
-  if (!canViewByRole(activeRole)) {
-    return sendForbidden(res, "You do not have permission to view leads");
-  }
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -189,21 +177,19 @@ export const getLeads = asyncHandler(async (req, res) => {
 });
 
 export const updateLead = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
   const { leadId } = req.validated.params;
   const { values, status } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can update leads");
-  }
 
   const lead = await LeadRow.findActiveById(leadId, businessId);
   if (!lead) {
     return sendNotFound(res, "Lead");
   }
 
-  const contact = await ContactList.findActiveById(lead.contactListId, businessId);
+  const contact = await ContactList.findActiveById(
+    lead.contactListId,
+    businessId
+  );
   if (!contact) {
     return sendNotFound(res, "Contact list");
   }
@@ -226,13 +212,8 @@ export const updateLead = asyncHandler(async (req, res) => {
 });
 
 export const deleteLead = asyncHandler(async (req, res) => {
-  const { activeRole } = req.user;
   const { businessId } = req;
   const { leadId } = req.validated.params;
-
-  if (!canDeleteByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin can delete leads");
-  }
 
   const lead = await LeadRow.findActiveById(leadId, businessId);
   if (!lead) {
@@ -244,21 +225,20 @@ export const deleteLead = asyncHandler(async (req, res) => {
 });
 
 export const assignLead = asyncHandler(async (req, res) => {
-  const { activeRole, userId } = req.user;
+  const { userId } = req.user;
   const { businessId } = req;
   const { leadId } = req.validated.params;
   const { assigneeId, reason } = req.validated.body;
-
-  if (!canMutateByRole(activeRole)) {
-    return sendForbidden(res, "Only owner/admin/staff can assign leads");
-  }
 
   const lead = await LeadRow.findActiveById(leadId, businessId);
   if (!lead) {
     return sendNotFound(res, "Lead");
   }
 
-  const contact = await ContactList.findActiveById(lead.contactListId, businessId);
+  const contact = await ContactList.findActiveById(
+    lead.contactListId,
+    businessId
+  );
   if (!contact) {
     return sendNotFound(res, "Contact list");
   }
@@ -268,7 +248,10 @@ export const assignLead = asyncHandler(async (req, res) => {
     contact.assignmentConfig.assigneePool
   );
   if (!activePool.includes(assigneeId)) {
-    return sendForbidden(res, "Assignee must be an active staff in this contact pool");
+    return sendForbidden(
+      res,
+      "Assignee must be an active staff in this contact pool"
+    );
   }
 
   const membership = await BusinessMember.findOne({

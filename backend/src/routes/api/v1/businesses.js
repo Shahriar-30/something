@@ -17,7 +17,12 @@ import {
 
 const router = express.Router();
 
-router.post("/", authenticate, validateRequest(createBusinessSchema), createBusiness);
+router.post(
+  "/",
+  authenticate,
+  validateRequest(createBusinessSchema),
+  createBusiness
+);
 router.get("/", authenticate, getMyBusinesses);
 router.get(
   "/:id",
