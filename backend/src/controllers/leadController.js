@@ -159,6 +159,7 @@ export const getLeads = asyncHandler(async (req, res) => {
   const [leads, total] = await Promise.all([
     LeadRow.find(query)
       .populate("assigneeId", "name email")
+      .populate("createdBy", "name email")
       .sort(sort)
       .skip(skip)
       .limit(limit),

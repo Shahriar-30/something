@@ -206,10 +206,6 @@ export default function ContactsList() {
 
   // If we are looking at a specific list
   if (listId) {
-    const totalLeads = 0; // TODO: Fetch from API
-    const unassignedLeads = 0; // TODO: Fetch from API
-    const statusSummary = {}; // TODO: Fetch from API
-
     return (
       <PageContainer>
         <PageHeader
@@ -231,75 +227,6 @@ export default function ContactsList() {
         </PageHeader>
 
         <PageContent>
-          <div className="grid gap-4 lg:grid-cols-3 mb-6">
-            <Card className="border-border bg-notion-bg/50 p-5">
-              <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                Total leads
-              </div>
-              <div className="text-3xl font-bold text-notion-black">
-                {totalLeads}
-              </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {statusSummary.new || 0} new · {statusSummary.open || 0} open ·{" "}
-                {statusSummary.won || 0} won
-              </div>
-            </Card>
-            <Card className="border-border bg-notion-bg/50 p-5">
-              <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                Unassigned
-              </div>
-              <div className="text-3xl font-bold text-notion-black">
-                {unassignedLeads}
-              </div>
-              <div className="mt-2 text-sm text-muted-foreground">
-                Leads without an owner yet
-              </div>
-            </Card>
-            {showContactMeta && (
-              <Card className="border-border bg-notion-bg/50 p-5">
-                <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground mb-2">
-                  Assignment
-                </div>
-                <div className="text-3xl font-bold text-notion-black">
-                  {activeList?.assignmentConfig?.mode || "queue"}
-                </div>
-                <div className="mt-2 text-sm text-muted-foreground">
-                  {activeList?.assignmentConfig?.strategy
-                    ? `Strategy: ${activeList.assignmentConfig.strategy}`
-                    : "Automatic assignment"}
-                </div>
-              </Card>
-            )}
-          </div>
-
-          <Card className="border-border p-5 mb-6 bg-notion-bg/50">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm uppercase tracking-[0.2em] text-muted-foreground">
-                  List schema
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {activeList?.fieldSchema?.map((field) => (
-                    <Badge
-                      key={field.key}
-                      className="uppercase text-[10px] font-semibold tracking-[0.18em]"
-                    >
-                      {field.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              {showContactMeta ? (
-                <div className="text-sm text-muted-foreground">
-                  Created by {activeList?.createdBy?.name || "Unknown"} on{" "}
-                  {activeList?.createdAt
-                    ? new Date(activeList.createdAt).toLocaleDateString()
-                    : "—"}
-                </div>
-              ) : null}
-            </div>
-          </Card>
-
           <LeadsTable
             listId={listId}
             schema={activeList?.fieldSchema || []}
