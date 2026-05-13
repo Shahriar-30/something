@@ -116,7 +116,7 @@ export const updateContact = asyncHandler(async (req, res) => {
   const { userId } = req.user;
   const { businessId } = req;
   const { id } = req.validated.params;
-  const { title, description, assignmentConfig } = req.validated.body;
+  const { title, description, assignmentConfig, fieldSchema } = req.validated.body;
 
   const contact = await ContactList.findActiveById(id, businessId);
   if (!contact) {
@@ -128,6 +128,11 @@ export const updateContact = asyncHandler(async (req, res) => {
   }
   if (description !== undefined) {
     contact.description = description;
+  }
+  if (fieldSchema !== undefined) {
+    const normalizedFieldSchema = sanitizeFieldSchema(fieldSchema);
+    validateUniqueFieldKeys(normalizedFieldSchema);
+    contact.fieldSchema = normalizedFieldSchema;
   }
   if (assignmentConfig) {
     const resolvedAssignmentConfig = await resolveAssignmentConfig(

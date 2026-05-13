@@ -15,10 +15,13 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
+import Select from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
 import { PageContainer, PageHeader, PageContent } from "@/components/layout";
 import useAuthStore from "@/store/useAuthStore";
 import { useContactLists, useContactList } from "../hooks/useContacts";
 import contactService from "../services/contactService";
+import businessMemberService from "@/features/auth/services/businessMemberService";
 import { LeadsTable } from "./LeadsTable";
 import SchemaBuilder from "./SchemaBuilder";
 
@@ -39,7 +42,14 @@ export default function ContactsList() {
     title: "",
     description: "",
     fieldSchema: [],
+    assignmentConfig: {
+      mode: "queue",
+      strategy: "round_robin",
+      assigneePool: [],
+    },
   });
+  const [staffMembers, setStaffMembers] = useState([]);
+  const [loadingStaffMembers, setLoadingStaffMembers] = useState(false);
   const [createError, setCreateError] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const descriptionLimit = 200;
@@ -55,13 +65,72 @@ export default function ContactsList() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editingList, setEditingList] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isEditingField, setIsEditingField] = useState(false);
 
-  const canCreateContacts = ["owner", "admin", "staff"].includes(
-    activeBusiness?.role,
-  );
+  const canCreateContacts = ["owner", "admin"].includes(activeBusiness?.role);
 
   const canManageContacts = ["owner", "admin"].includes(activeBusiness?.role);
   const showContactMeta = canManageContacts;
+
+  const loadStaffMembers = async () => {
+    setLoadingStaffMembers(true);
+    try {
+      const response = await businessMemberService.listMembers({
+        page: 1,
+        limit: 1000,
+      });
+      const members = (response.data?.members || []).filter(
+        (member) => member.role === "staff" && member.user,
+      );
+      setStaffMembers(members);
+    } catch (err) {
+      console.error("Failed to load staff members", err);
+      setStaffMembers([]);
+    } finally {
+      setLoadingStaffMembers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!businessId) return;
+    loadStaffMembers();
+  }, [businessId]);
+
+  const handleToggleAssignee = (userId) => {
+    setNewContactData((prev) => {
+      const pool = prev.assignmentConfig.assigneePool || [];
+      const nextPool = pool.includes(userId)
+        ? pool.filter((id) => id !== userId)
+        : [...pool, userId];
+      return {
+        ...prev,
+        assignmentConfig: {
+          ...prev.assignmentConfig,
+          assigneePool: nextPool,
+        },
+      };
+    });
+  };
+
+  const handleAssignmentModeChange = (checked) => {
+    setNewContactData((prev) => ({
+      ...prev,
+      assignmentConfig: {
+        ...prev.assignmentConfig,
+        mode: checked ? "auto" : "queue",
+      },
+    }));
+  };
+
+  const handleAssignmentStrategyChange = (strategy) => {
+    setNewContactData((prev) => ({
+      ...prev,
+      assignmentConfig: {
+        ...prev.assignmentConfig,
+        strategy,
+      },
+    }));
+  };
 
   const getLeadCount = (listId) => {
     // TODO: Implement lead count fetching from API
@@ -94,13 +163,23 @@ export default function ContactsList() {
         title: newContactData.title.trim(),
         description: newContactData.description.trim() || null,
         fieldSchema: newContactData.fieldSchema,
+        assignmentConfig: newContactData.assignmentConfig,
       });
 
       const created = response.data?.contact;
       if (created?._id) {
         await refreshLists();
         setIsCreateModalOpen(false);
-        setNewContactData({ title: "", description: "", fieldSchema: [] });
+        setNewContactData({
+          title: "",
+          description: "",
+          fieldSchema: [],
+          assignmentConfig: {
+            mode: "queue",
+            strategy: "round_robin",
+            assigneePool: [],
+          },
+        });
         navigate(`/${businessId}/contacts/${created._id}`);
       }
     } catch (err) {
@@ -137,6 +216,12 @@ export default function ContactsList() {
     setNewContactData({
       title: list.title,
       description: list.description || "",
+      fieldSchema: list.fieldSchema || [],
+      assignmentConfig: list.assignmentConfig || {
+        mode: "queue",
+        strategy: "round_robin",
+        assigneePool: [],
+      },
     });
     setIsCreateModalOpen(true);
     setMenuOpen(null);
@@ -161,10 +246,21 @@ export default function ContactsList() {
       await contactService.updateContactList(editingList._id, {
         title: newContactData.title.trim(),
         description: newContactData.description.trim() || null,
+        fieldSchema: newContactData.fieldSchema,
+        assignmentConfig: newContactData.assignmentConfig,
       });
 
       setIsCreateModalOpen(false);
-      setNewContactData({ title: "", description: "" });
+      setNewContactData({
+        title: "",
+        description: "",
+        fieldSchema: [],
+        assignmentConfig: {
+          mode: "queue",
+          strategy: "round_robin",
+          assigneePool: [],
+        },
+      });
       setEditingList(null);
       refreshLists();
     } catch (err) {
@@ -180,9 +276,19 @@ export default function ContactsList() {
 
   const handleModalClose = () => {
     setIsCreateModalOpen(false);
-    setNewContactData({ title: "", description: "", fieldSchema: [] });
+    setNewContactData({
+      title: "",
+      description: "",
+      fieldSchema: [],
+      assignmentConfig: {
+        mode: "queue",
+        strategy: "round_robin",
+        assigneePool: [],
+      },
+    });
     setCreateError("");
     setEditingList(null);
+    setIsEditingField(false);
   };
 
   const handleDeleteModalClose = () => {
@@ -294,8 +400,8 @@ export default function ContactsList() {
               </Button>
             ) : (
               <div className="rounded-md border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                Viewers can view contact lists here, but cannot create or edit
-                them.
+                Only owners and admins can create contact lists. Staff and
+                viewers can still view contact lists here.
               </div>
             )}
           </Card>
@@ -336,7 +442,7 @@ export default function ContactsList() {
                                 }}
                               >
                                 <Edit className="h-4 w-4 mr-2" />
-                                Rename
+                                Edit
                               </button>
                               <button
                                 className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -388,7 +494,13 @@ export default function ContactsList() {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={handleModalClose}
-        title={editingList ? "Rename Contact List" : "Create Contact List"}
+        title={
+          isEditingField
+            ? "Edit Field"
+            : editingList
+              ? "Edit Contact List"
+              : "Create Contact List"
+        }
         footer={
           <>
             <Button
@@ -408,7 +520,17 @@ export default function ContactsList() {
                 (!editingList && newContactData.fieldSchema.length === 0) ||
                 (editingList &&
                   newContactData.title.trim() === editingList.title &&
-                  newContactData.description === editingList.description)
+                  newContactData.description === editingList.description &&
+                  JSON.stringify(newContactData.fieldSchema) ===
+                    JSON.stringify(editingList.fieldSchema || []) &&
+                  JSON.stringify(newContactData.assignmentConfig) ===
+                    JSON.stringify(
+                      editingList.assignmentConfig || {
+                        mode: "queue",
+                        strategy: "round_robin",
+                        assigneePool: [],
+                      },
+                    ))
               }
             >
               {isCreating
@@ -479,7 +601,138 @@ export default function ContactsList() {
                   fieldSchema,
                 }))
               }
+              onEditField={setIsEditingField}
             />
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/50 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-notion-black">
+                  Staff assignment
+                </h4>
+                <p className="text-xs text-muted-foreground">
+                  Add staff members to this contact list and enable auto
+                  assignment.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-notion-black">
+                  Auto assign
+                </span>
+                <Switch
+                  checked={newContactData.assignmentConfig.mode === "auto"}
+                  onCheckedChange={handleAssignmentModeChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2 mt-4">
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Assignment strategy
+                </label>
+                <Select
+                  options={[
+                    { value: "round_robin", label: "Round robin" },
+                    { value: "least_loaded", label: "Least loaded" },
+                  ]}
+                  value={newContactData.assignmentConfig.strategy}
+                  onChange={handleAssignmentStrategyChange}
+                  placeholder="Select strategy"
+                  disabled={newContactData.assignmentConfig.mode !== "auto"}
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Selected staff
+                </p>
+                <div className="min-h-[44px] rounded-md border border-border bg-background p-3">
+                  {newContactData.assignmentConfig.assigneePool.length === 0 ? (
+                    <span className="text-xs text-muted-foreground">
+                      No staff selected yet.
+                    </span>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {newContactData.assignmentConfig.assigneePool.map(
+                        (userId) => {
+                          const member = staffMembers.find(
+                            (item) => item.user?.id === userId,
+                          );
+                          return (
+                            <span
+                              key={userId}
+                              className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs text-primary"
+                            >
+                              {member?.user?.name || "Unknown"}
+                              <button
+                                type="button"
+                                onClick={() => handleToggleAssignee(userId)}
+                                className="rounded-full text-primary hover:text-primary/80"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          );
+                        },
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-notion-black">
+                  Business staff
+                </p>
+                {loadingStaffMembers ? (
+                  <span className="text-xs text-muted-foreground">
+                    Loading staff…
+                  </span>
+                ) : null}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {staffMembers.length === 0 && !loadingStaffMembers ? (
+                  <div className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
+                    No active staff members found for this business.
+                  </div>
+                ) : (
+                  staffMembers.map((member) => {
+                    const userId = member.user?.id;
+                    const isAssigned =
+                      userId &&
+                      newContactData.assignmentConfig.assigneePool.includes(
+                        userId,
+                      );
+                    return (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {member.user?.name || "Unknown staff"}
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">
+                            {member.user?.email}
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isAssigned ? "secondary" : "outline"}
+                          onClick={() => handleToggleAssignee(userId)}
+                        >
+                          {isAssigned ? "Added" : "Add"}
+                        </Button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
           </div>
 
           {createError ? (

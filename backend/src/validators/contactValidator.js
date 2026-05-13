@@ -50,6 +50,7 @@ export const updateContactSchema = z.object({
       .max(200, "Description must be 200 characters or fewer")
       .optional()
       .nullable(),
+    fieldSchema: z.array(fieldItemSchema).optional(),
     assignmentConfig: assignmentConfigSchema.optional(),
   }),
 });

@@ -37,6 +37,7 @@ import {
 } from "../../../validators/leadValidator.js";
 
 const router = express.Router();
+const CONTACT_CREATE_ROLES = ROLE_GROUPS.CONTACT_CREATE;
 const CONTACT_MUTATE_ROLES = ROLE_GROUPS.CONTACT_MUTATE;
 const CONTACT_VIEW_ROLES = ROLE_GROUPS.CONTACT_VIEW;
 const BUSINESS_ADMIN_ROLES = ROLE_GROUPS.BUSINESS_ADMIN;
@@ -45,7 +46,7 @@ router.post(
   "/",
   authenticate,
   businessScope,
-  requireRole(...CONTACT_MUTATE_ROLES),
+  requireRole(...CONTACT_CREATE_ROLES),
   validateRequest(createContactSchema),
   createContact
 );

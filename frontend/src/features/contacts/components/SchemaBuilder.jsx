@@ -1,8 +1,24 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Edit, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const FIELD_TYPES = [
   { value: "text", label: "Text" },
@@ -11,7 +27,79 @@ const FIELD_TYPES = [
   { value: "select", label: "Dropdown" },
 ];
 
-export default function SchemaBuilder({ schema = [], onChange }) {
+function SortableItem({ field, index, onEdit }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: field.key || `field-${index}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border border-border rounded-md p-4 bg-muted/50 ${
+        isDragging ? "shadow-lg opacity-50" : ""
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Drag handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex items-center justify-center w-6 h-6 mt-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+
+        {/* Field content */}
+        <div className="flex-1">
+          <div className="font-medium text-sm">{field.label}</div>
+          <div className="text-xs text-muted-foreground">
+            Type: {FIELD_TYPES.find((t) => t.value === field.type)?.label}
+            {field.type === "select" && field.options && (
+              <span> • {field.options.length} options</span>
+            )}
+          </div>
+          {field.type === "select" && field.options?.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {field.options.map((option, optionIndex) => (
+                <span
+                  key={optionIndex}
+                  className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary"
+                >
+                  {option}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-col items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onEdit(index)}
+            className="text-muted-foreground"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SchemaBuilder({ schema = [], onChange, onEditField }) {
   const [newField, setNewField] = useState({
     key: "",
     label: "",
@@ -19,6 +107,15 @@ export default function SchemaBuilder({ schema = [], onChange }) {
     options: [],
   });
   const [newOption, setNewOption] = useState("");
+  const [editingFieldIndex, setEditingFieldIndex] = useState(null);
+  const formRef = useRef(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   const generateKey = (label) => {
     return label
@@ -29,15 +126,34 @@ export default function SchemaBuilder({ schema = [], onChange }) {
       .replace(/^_|_$/g, "");
   };
 
+  const scrollToForm = () => {
+    if (formRef.current) {
+      formRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
+  const handleEdit = (index) => {
+    const field = schema[index];
+    setEditingFieldIndex(index);
+    setNewField({
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      options: field.options || [],
+    });
+    if (onEditField) {
+      onEditField(true);
+    }
+    setTimeout(scrollToForm, 100);
+  };
+
   const addField = () => {
     if (!newField.label.trim()) return;
 
     const fieldKey = newField.key || generateKey(newField.label);
-
-    // Check for duplicate keys
-    if (schema.some((field) => field.key === fieldKey)) {
-      return;
-    }
 
     // For select fields, require at least one option
     if (newField.type === "select" && newField.options.length === 0) {
@@ -51,18 +167,27 @@ export default function SchemaBuilder({ schema = [], onChange }) {
       options: newField.type === "select" ? newField.options : [],
     };
 
-    onChange([...schema, field]);
+    if (editingFieldIndex !== null) {
+      const updatedSchema = [...schema];
+      updatedSchema[editingFieldIndex] = field;
+      onChange(updatedSchema);
+      setEditingFieldIndex(null);
+      if (onEditField) {
+        onEditField(false);
+      }
+    } else {
+      if (schema.some((item) => item.key === fieldKey)) {
+        return;
+      }
+      onChange([...schema, field]);
+    }
+
     setNewField({
       key: "",
       label: "",
       type: "text",
       options: [],
     });
-  };
-
-  const removeField = (index) => {
-    const newSchema = schema.filter((_, i) => i !== index);
-    onChange(newSchema);
   };
 
   const addOption = () => {
@@ -76,6 +201,21 @@ export default function SchemaBuilder({ schema = [], onChange }) {
   const removeOption = (optionIndex) => {
     const updatedOptions = newField.options.filter((_, i) => i !== optionIndex);
     setNewField({ ...newField, options: updatedOptions });
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = schema.findIndex(
+        (item) => (item.key || `field-${schema.indexOf(item)}`) === active.id,
+      );
+      const newIndex = schema.findIndex(
+        (item) => (item.key || `field-${schema.indexOf(item)}`) === over.id,
+      );
+
+      onChange(arrayMove(schema, oldIndex, newIndex));
+    }
   };
 
   return (
@@ -93,39 +233,35 @@ export default function SchemaBuilder({ schema = [], onChange }) {
       </div>
 
       {/* Existing Fields */}
-      <div className="space-y-3">
-        {schema.map((field, index) => (
-          <div
-            key={index}
-            className="border border-border rounded-md p-4 bg-muted/50"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="font-medium text-sm">{field.label}</div>
-                <div className="text-xs text-muted-foreground">
-                  Type: {FIELD_TYPES.find((t) => t.value === field.type)?.label}
-                  {field.type === "select" && field.options && (
-                    <span> • {field.options.length} options</span>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => removeField(index)}
-                className="text-destructive hover:text-destructive/80 ml-2"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={schema.map((field, index) => field.key || `field-${index}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-3">
+            {schema.map((field, index) => (
+              <SortableItem
+                key={field.key || `field-${index}`}
+                field={field}
+                index={index}
+                onEdit={handleEdit}
+              />
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Add New Field */}
-      <div className="border-2 border-dashed border-border rounded-md p-4">
+      <div
+        ref={formRef}
+        className="border-2 border-dashed border-border rounded-md p-4"
+      >
         <h5 className="text-sm font-medium text-foreground mb-3">
-          Add New Field
+          {editingFieldIndex !== null ? "Edit Field" : "Add New Field"}
         </h5>
 
         <div className="space-y-3">
@@ -217,7 +353,28 @@ export default function SchemaBuilder({ schema = [], onChange }) {
             </div>
           )}
 
-          <div className="flex justify-end pt-2">
+          <div className="flex items-center justify-end gap-2 pt-2">
+            {editingFieldIndex !== null && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditingFieldIndex(null);
+                  setNewField({
+                    key: "",
+                    label: "",
+                    type: "text",
+                    options: [],
+                  });
+                  if (onEditField) {
+                    onEditField(false);
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+            )}
             <Button
               type="button"
               onClick={addField}
@@ -228,7 +385,7 @@ export default function SchemaBuilder({ schema = [], onChange }) {
               size="sm"
             >
               <Plus className="h-4 w-4 mr-2" />
-              Add Field
+              {editingFieldIndex !== null ? "Save Changes" : "Add Field"}
             </Button>
           </div>
         </div>
